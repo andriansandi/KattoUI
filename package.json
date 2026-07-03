@@ -1,0 +1,30 @@
+{
+	"name": "katto",
+	"private": true,
+	"type": "module",
+	"version": "0.1.0",
+	"description": "The Open Source AI Workspace built for Cloudflare.",
+	"packageManager": "pnpm@9.15.0",
+	"engines": {
+		"node": ">=22.0.0"
+	},
+	"scripts": {
+		"dev": "concurrently \"pnpm dev:api\" \"pnpm dev:web\" --names api,web --prefix-colors auto",
+		"dev:web": "pnpm --filter @katto/web dev",
+		"dev:api": "pnpm --filter @katto/api dev",
+		"build": "pnpm -r build",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"typecheck": "pnpm -r typecheck",
+		"test": "vitest",
+		"test:e2e": "playwright test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@playwright/test": "^1.49.0",
+		"@types/node": "^22.10.0",
+		"concurrently": "^9.1.0",
+		"vitest": "^2.1.0"
+	}
+}

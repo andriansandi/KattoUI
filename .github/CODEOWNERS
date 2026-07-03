@@ -1,0 +1,14 @@
+# Global default
+* @kattoui/maintainers
+
+# Documentation
+docs/ @kattoui/maintainers
+
+# Frontend application
+apps/web @kattoui/maintainers
+
+# API Worker
+apps/api @kattoui/maintainers
+
+# Shared packages
+packages/* @kattoui/maintainers

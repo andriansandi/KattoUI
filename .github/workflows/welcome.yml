@@ -1,0 +1,31 @@
+name: Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    name: Welcome first-time contributors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            Welcome, and thank you for opening your first issue in KattoUI! 🐱
+
+            A maintainer will take a look as soon as possible. Please make sure
+            you have provided all the details requested in the issue template.
+          pr-message: |
+            Welcome, and thank you for your first pull request! 🐱
+
+            We appreciate your contribution. A maintainer will review your PR
+            shortly. In the meantime, please make sure CI passes and the PR
+            description is filled out.

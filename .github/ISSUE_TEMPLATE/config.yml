@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: KattoUI documentation
+    url: https://github.com/kattoui/kattoUI#readme
+    about: Check the README before opening an issue.
+  - name: Ask a question or start a discussion
+    url: https://github.com/kattoui/kattoUI/discussions
+    about: Please use GitHub Discussions for questions, ideas, and general help.

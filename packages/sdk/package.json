@@ -1,0 +1,17 @@
+{
+	"name": "@katto/sdk",
+	"version": "0.1.0",
+	"private": true,
+	"description": "SDK contracts for providers, plugins, themes, commands, and auth.",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"devDependencies": {
+		"@katto/tsconfig": "workspace:*",
+		"typescript": "^5.7.0"
+	}
+}

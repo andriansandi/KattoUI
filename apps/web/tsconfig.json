@@ -1,0 +1,10 @@
+{
+	"extends": "@katto/tsconfig/react-app.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"~/*": ["./app/*"]
+		}
+	},
+	"include": ["app/**/*", "vite.config.ts"]
+}

@@ -1,0 +1,21 @@
+{
+	"name": "@katto/design-system",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Theme tokens, CSS variables, and design primitives for KattoUI.",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		},
+		"./styles/*": {
+			"default": "./src/styles/*"
+		}
+	},
+	"devDependencies": {
+		"@katto/sdk": "workspace:*",
+		"@katto/tsconfig": "workspace:*",
+		"typescript": "^5.7.0"
+	}
+}
