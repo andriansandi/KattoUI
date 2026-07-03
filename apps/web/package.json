@@ -13,7 +13,7 @@
 		"@clerk/clerk-react": "^5.61.8",
 		"@katto/design-system": "workspace:*",
 		"@katto/sdk": "workspace:*",
-		"@tanstack/react-form": "^0.41.0",
+		"@tanstack/react-form": "^1.33.0",
 		"@tanstack/react-query": "^5.62.0",
 		"@tanstack/react-router": "^1.95.0",
 		"@tanstack/react-start": "^1.95.0",
