@@ -1,10 +1,11 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { Send } from "lucide-react";
+import { Menu, Send } from "lucide-react";
 import { useState } from "react";
 import { ChatBubble } from "~/components/chat-bubble";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useConversations } from "~/lib/queries/conversations";
+import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/$conversationId")({
 	component: ChatConversationPage,
@@ -16,6 +17,7 @@ function ChatConversationPage() {
 	});
 	const { data } = useConversations();
 	const conversation = data?.conversations.find((c) => c.id === conversationId);
+	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
 
 	const [messages, setMessages] = useState([
 		{
@@ -46,8 +48,12 @@ function ChatConversationPage() {
 	}
 
 	return (
-		<div className="mx-auto flex h-full max-w-3xl flex-col">
-			<div className="border-b py-3">
+		<div className="mx-auto flex h-full max-w-3xl flex-col px-4">
+			<div className="flex items-center gap-2 border-b py-3">
+				<Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileSidebar}>
+					<Menu className="h-5 w-5" />
+					<span className="sr-only">Toggle sidebar</span>
+				</Button>
 				<h1 className="text-sm font-semibold">{conversation?.title ?? "Chat"}</h1>
 			</div>
 			<div className="flex-1 space-y-4 overflow-y-auto py-4">
@@ -55,7 +61,7 @@ function ChatConversationPage() {
 					<ChatBubble key={i.toString()} role={m.role} content={m.content} />
 				))}
 			</div>
-			<div className="flex items-center gap-2 border-t pt-4">
+			<div className="flex items-center gap-2 border-t pt-4 pb-4">
 				<Input
 					value={input}
 					onChange={(e) => setInput(e.target.value)}

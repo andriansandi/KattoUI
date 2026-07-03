@@ -1,13 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PawPrint } from "lucide-react";
+import { Menu, PawPrint } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
 	component: ChatEmptyState,
 });
 
 function ChatEmptyState() {
+	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
+
 	return (
-		<div className="flex h-full flex-col items-center justify-center text-center">
+		<div className="relative flex h-full flex-col items-center justify-center text-center">
+			<Button
+				variant="ghost"
+				size="icon"
+				className="absolute left-4 top-4 md:hidden"
+				onClick={toggleMobileSidebar}
+			>
+				<Menu className="h-5 w-5" />
+				<span className="sr-only">Toggle sidebar</span>
+			</Button>
 			<div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
 				<PawPrint className="h-6 w-6" />
 			</div>
