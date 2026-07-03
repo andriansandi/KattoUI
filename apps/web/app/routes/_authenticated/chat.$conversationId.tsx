@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChatBubble } from "~/components/chat-bubble";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { useConversations } from "~/lib/queries/conversations";
 
 export const Route = createFileRoute("/_authenticated/chat/$conversationId")({
 	component: ChatConversationPage,
@@ -13,6 +14,9 @@ function ChatConversationPage() {
 	const { conversationId } = useParams({
 		from: "/_authenticated/chat/$conversationId",
 	});
+	const { data } = useConversations();
+	const conversation = data?.conversations.find((c) => c.id === conversationId);
+
 	const [messages, setMessages] = useState([
 		{
 			role: "user" as const,
@@ -42,7 +46,10 @@ function ChatConversationPage() {
 	}
 
 	return (
-		<div className="mx-auto flex h-[calc(100vh-7rem)] max-w-3xl flex-col">
+		<div className="mx-auto flex h-full max-w-3xl flex-col">
+			<div className="border-b py-3">
+				<h1 className="text-sm font-semibold">{conversation?.title ?? "Chat"}</h1>
+			</div>
 			<div className="flex-1 space-y-4 overflow-y-auto py-4">
 				{messages.map((m, i) => (
 					<ChatBubble key={i.toString()} role={m.role} content={m.content} />
