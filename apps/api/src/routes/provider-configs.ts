@@ -1,4 +1,4 @@
-import type { ProviderConfig } from "@katto/sdk/chat";
+import type { ProviderConfig, ProviderType } from "@katto/sdk/chat";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb } from "../../db/index.js";
@@ -17,12 +17,37 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 // Protect every route in this sub-app — covers `/`, `/:id`, and `/test`.
 app.use("*", requireAuth);
 
+/** Per-type request shape. The models path is shared; auth differs. */
+interface ProviderSpec {
+	modelsPath: string;
+	buildHeaders: (token: string) => Record<string, string>;
+}
+
+const PROVIDER_SPECS: Record<ProviderType, ProviderSpec> = {
+	openai: {
+		modelsPath: "/models",
+		buildHeaders: (token) => (token ? { Authorization: `Bearer ${token}` } : {}),
+	},
+	anthropic: {
+		modelsPath: "/models",
+		buildHeaders: (token) =>
+			token
+				? { "x-api-key": token, "anthropic-version": "2023-06-01" }
+				: { "anthropic-version": "2023-06-01" },
+	},
+	custom: {
+		modelsPath: "/models",
+		buildHeaders: (token) => (token ? { Authorization: `Bearer ${token}` } : {}),
+	},
+};
+
 /** Maps a stored row to the masked SDK shape — `apiToken` is never exposed. */
 function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderConfig {
 	const config: ProviderConfig = {
 		id: row.id,
 		userId: row.userId,
 		name: row.name,
+		type: row.type,
 		baseUrl: row.baseUrl,
 		isConfigured: row.apiToken !== "",
 		createdAt: row.createdAt,
@@ -58,6 +83,7 @@ app.post("/", async (c) => {
 			id: crypto.randomUUID(),
 			userId,
 			name: data.name,
+			type: data.type,
 			baseUrl: data.baseUrl,
 			apiToken: data.apiToken ?? "",
 			defaultModel: data.defaultModel || null,
@@ -99,6 +125,7 @@ app.patch("/:id", async (c) => {
 		.set({
 			updatedAt: now,
 			...(data.name !== undefined && { name: data.name }),
+			...(data.type !== undefined && { type: data.type }),
 			...(data.baseUrl !== undefined && { baseUrl: data.baseUrl }),
 			// An empty/omitted token means "keep existing" — never overwrite with "".
 			...(data.apiToken !== undefined &&
@@ -156,10 +183,11 @@ app.post("/test", async (c) => {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), 8000);
 	const token = data.apiToken ?? "";
+	const spec = PROVIDER_SPECS[data.type];
 
 	try {
-		const response = await fetch(`${data.baseUrl.replace(/\/$/, "")}/models`, {
-			headers: token !== "" ? { Authorization: `Bearer ${token}` } : {},
+		const response = await fetch(`${data.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
+			headers: spec.buildHeaders(token),
 			signal: controller.signal,
 		});
 

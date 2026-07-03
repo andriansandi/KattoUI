@@ -1,12 +1,15 @@
 import type { Context } from "hono";
 import { z } from "zod";
 
+const providerTypeEnum = z.enum(["openai", "anthropic", "custom"]);
+
 /**
  * Schemas for provider config requests. `apiToken` is optional (defaulting to
  * an empty string) so tokenless providers such as local Ollama are supported.
  */
 export const providerConfigCreateSchema = z.object({
 	name: z.string().min(1).max(100),
+	type: providerTypeEnum,
 	baseUrl: z.string().min(1).max(500),
 	apiToken: z.string().max(1000).optional(),
 	defaultModel: z.string().max(200).optional(),
@@ -14,12 +17,14 @@ export const providerConfigCreateSchema = z.object({
 
 export const providerConfigUpdateSchema = z.object({
 	name: z.string().min(1).max(100).optional(),
+	type: providerTypeEnum.optional(),
 	baseUrl: z.string().min(1).max(500).optional(),
 	apiToken: z.string().max(1000).optional(),
 	defaultModel: z.string().max(200).optional(),
 });
 
 export const providerConfigTestSchema = z.object({
+	type: providerTypeEnum,
 	baseUrl: z.string().min(1).max(500),
 	apiToken: z.string().max(1000).optional(),
 	defaultModel: z.string().max(200).optional(),

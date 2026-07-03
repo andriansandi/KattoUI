@@ -1,5 +1,11 @@
-import type { ProviderConfig, ProviderConfigInput, ProviderConfigUpdate } from "@katto/sdk";
+import type {
+	ProviderConfig,
+	ProviderConfigInput,
+	ProviderConfigUpdate,
+	ProviderType,
+} from "@katto/sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { useAuthFetch } from "~/lib/auth-fetch";
 
 const QUERY_KEY = ["provider-configs"] as const;
@@ -61,6 +67,7 @@ export function useTestProviderConfig() {
 	const authFetch = useAuthFetch();
 	return useMutation({
 		mutationFn: (input: {
+			type: ProviderType;
 			baseUrl: string;
 			apiToken?: string;
 			defaultModel?: string;

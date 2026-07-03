@@ -1,7 +1,23 @@
-import type { ProviderConfig, ProviderConfigInput, ProviderConfigUpdate } from "@katto/sdk";
+import type {
+	ProviderConfig,
+	ProviderConfigInput,
+	ProviderConfigUpdate,
+	ProviderType,
+} from "@katto/sdk";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, Check, Loader2, Pencil, Plug, Plus, Trash2, X } from "lucide-react";
+import {
+	AlertCircle,
+	Check,
+	Eye,
+	EyeOff,
+	Loader2,
+	Pencil,
+	Plug,
+	Plus,
+	Trash2,
+	X,
+} from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { ClientOnly } from "~/components/client-only";
@@ -10,6 +26,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
+import { cn } from "~/lib/cn";
 import {
 	useCreateProviderConfig,
 	useDeleteProviderConfig,
@@ -21,6 +38,28 @@ import {
 export const Route = createFileRoute("/_authenticated/settings/providers")({
 	component: ProvidersSettingsPage,
 });
+
+/** Per-type UI metadata and chat endpoint path (the API appends this in Slice 5). */
+const PROVIDER_META: Record<
+	ProviderType,
+	{ label: string; placeholder: string; chatPath: string }
+> = {
+	openai: {
+		label: "OpenAI",
+		placeholder: "https://api.openai.com/v1",
+		chatPath: "chat/completions",
+	},
+	anthropic: {
+		label: "Anthropic",
+		placeholder: "https://api.anthropic.com/v1",
+		chatPath: "messages",
+	},
+	custom: {
+		label: "Custom",
+		placeholder: "https://your-provider.com/v1",
+		chatPath: "chat/completions",
+	},
+};
 
 function ProvidersSettingsPage() {
 	return (
@@ -120,6 +159,7 @@ function ProvidersContent() {
 								<div className="min-w-0">
 									<div className="flex items-center gap-2">
 										<p className="truncate font-medium">{config.name}</p>
+										<Badge variant="secondary">{PROVIDER_META[config.type].label}</Badge>
 										<Badge variant={config.isConfigured ? "default" : "outline"}>
 											{config.isConfigured ? "Configured" : "No token"}
 										</Badge>
@@ -195,10 +235,12 @@ function ProviderConfigForm({
 	const createMutation = useCreateProviderConfig();
 	const updateMutation = useUpdateProviderConfig();
 	const testMutation = useTestProviderConfig();
+	const [showToken, setShowToken] = useState(false);
 
 	const form = useForm({
 		defaultValues: {
 			name: editing?.name ?? "",
+			type: editing?.type ?? "openai",
 			baseUrl: editing?.baseUrl ?? "",
 			apiToken: "",
 			defaultModel: editing?.defaultModel ?? "",
@@ -209,6 +251,7 @@ function ProviderConfigForm({
 					const update: ProviderConfigUpdate & { id: string } = {
 						id: editing.id,
 						name: value.name,
+						type: value.type,
 						baseUrl: value.baseUrl,
 						defaultModel: value.defaultModel,
 					};
@@ -219,6 +262,7 @@ function ProviderConfigForm({
 				} else {
 					const input: ProviderConfigInput = {
 						name: value.name,
+						type: value.type,
 						baseUrl: value.baseUrl,
 						apiToken: value.apiToken,
 						defaultModel: value.defaultModel,
@@ -252,6 +296,31 @@ function ProviderConfigForm({
 				}}
 				className="space-y-4"
 			>
+				<form.Field name="type">
+					{(field) => (
+						<div className="space-y-2">
+							<span className="block text-sm font-medium">Type</span>
+							<div className="flex gap-1 rounded-lg border p-1">
+								{(Object.keys(PROVIDER_META) as ProviderType[]).map((t) => (
+									<button
+										key={t}
+										type="button"
+										onClick={() => field.handleChange(t)}
+										className={cn(
+											"flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+											field.state.value === t
+												? "bg-primary text-primary-foreground"
+												: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+										)}
+									>
+										{PROVIDER_META[t].label}
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+				</form.Field>
+
 				<form.Field
 					name="name"
 					validators={{ onChange: z.string().min(1, "Name is required").max(100) }}
@@ -275,28 +344,40 @@ function ProviderConfigForm({
 					)}
 				</form.Field>
 
-				<form.Field
-					name="baseUrl"
-					validators={{ onChange: z.string().min(1, "Base URL is required").max(500) }}
-				>
-					{(field) => (
-						<div className="space-y-2">
-							<label htmlFor="pc-baseurl" className="block text-sm font-medium">
-								Base URL
-							</label>
-							<Input
-								id="pc-baseurl"
-								placeholder="https://api.openai.com/v1"
-								value={field.state.value}
-								onChange={(e) => field.handleChange(e.target.value)}
-								onBlur={field.handleBlur}
-							/>
-							{fieldError(field.state.meta.errors) && (
-								<p className="text-xs text-destructive">{fieldError(field.state.meta.errors)}</p>
+				<form.Subscribe selector={(s) => s.values.type}>
+					{(type) => (
+						<form.Field
+							name="baseUrl"
+							validators={{ onChange: z.string().min(1, "Base URL is required").max(500) }}
+						>
+							{(field) => (
+								<div className="space-y-2">
+									<label htmlFor="pc-baseurl" className="block text-sm font-medium">
+										Base URL
+									</label>
+									<Input
+										id="pc-baseurl"
+										placeholder={PROVIDER_META[type].placeholder}
+										value={field.state.value}
+										onChange={(e) => field.handleChange(e.target.value)}
+										onBlur={field.handleBlur}
+									/>
+									{field.state.value && (
+										<p className="text-xs text-muted-foreground">
+											Chat endpoint: {field.state.value.replace(/\/$/, "")}/
+											{PROVIDER_META[type].chatPath}
+										</p>
+									)}
+									{fieldError(field.state.meta.errors) && (
+										<p className="text-xs text-destructive">
+											{fieldError(field.state.meta.errors)}
+										</p>
+									)}
+								</div>
 							)}
-						</div>
+						</form.Field>
 					)}
-				</form.Field>
+				</form.Subscribe>
 
 				<form.Field name="apiToken" validators={{ onChange: z.string().max(1000) }}>
 					{(field) => (
@@ -304,14 +385,25 @@ function ProviderConfigForm({
 							<label htmlFor="pc-token" className="block text-sm font-medium">
 								API Token
 							</label>
-							<Input
-								id="pc-token"
-								type="password"
-								placeholder={editing ? "Leave blank to keep current" : "sk-..."}
-								value={field.state.value}
-								onChange={(e) => field.handleChange(e.target.value)}
-								onBlur={field.handleBlur}
-							/>
+							<div className="relative">
+								<Input
+									id="pc-token"
+									type={showToken ? "text" : "password"}
+									placeholder={editing ? "Leave blank to keep current" : "sk-..."}
+									value={field.state.value}
+									onChange={(e) => field.handleChange(e.target.value)}
+									onBlur={field.handleBlur}
+									className="pr-9"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowToken((v) => !v)}
+									className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+									aria-label={showToken ? "Hide token" : "Show token"}
+								>
+									{showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+								</button>
+							</div>
 							<p className="text-xs text-muted-foreground">
 								Leave empty for tokenless providers (e.g. local Ollama).
 							</p>
@@ -352,6 +444,7 @@ function ProviderConfigForm({
 								disabled={testMutation.isPending || !values.baseUrl}
 								onClick={() =>
 									testMutation.mutate({
+										type: values.type,
 										baseUrl: values.baseUrl,
 										apiToken: values.apiToken,
 									})

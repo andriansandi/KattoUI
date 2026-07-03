@@ -1,8 +1,12 @@
+/** Supported provider types. */
+export type ProviderType = "openai" | "anthropic" | "custom";
+
 /** A provider configuration stored per user. */
 export interface ProviderConfig {
 	id: string;
 	userId: string;
 	name: string;
+	type: ProviderType;
 	baseUrl: string;
 	defaultModel?: string;
 	isConfigured: boolean;
@@ -13,6 +17,7 @@ export interface ProviderConfig {
 /** Input for creating a provider config. */
 export interface ProviderConfigInput {
 	name: string;
+	type: ProviderType;
 	baseUrl: string;
 	apiToken: string;
 	defaultModel?: string;
@@ -21,6 +26,7 @@ export interface ProviderConfigInput {
 /** Input for updating a provider config. */
 export interface ProviderConfigUpdate {
 	name?: string;
+	type?: ProviderType;
 	baseUrl?: string;
 	apiToken?: string;
 	defaultModel?: string;

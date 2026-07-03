@@ -4,6 +4,9 @@ export const providerConfigs = sqliteTable("provider_configs", {
 	id: text("id").primaryKey(),
 	userId: text("user_id").notNull(),
 	name: text("name").notNull(),
+	type: text("type", { enum: ["openai", "anthropic", "custom"] })
+		.notNull()
+		.default("openai"),
 	baseUrl: text("base_url").notNull(),
 	apiToken: text("api_token").notNull(),
 	defaultModel: text("default_model"),
