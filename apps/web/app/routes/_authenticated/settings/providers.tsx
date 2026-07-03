@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Check, Loader2, Pencil, Plug, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { ClientOnly } from "~/components/client-only";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -22,6 +23,31 @@ export const Route = createFileRoute("/_authenticated/settings/providers")({
 });
 
 function ProvidersSettingsPage() {
+	return (
+		<ClientOnly
+			fallback={
+				<Card>
+					<CardHeader>
+						<CardTitle>Providers</CardTitle>
+						<CardDescription>
+							Connect OpenAI-compatible providers to start chatting.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-3">
+							<Skeleton className="h-16 w-full" />
+							<Skeleton className="h-16 w-full" />
+						</div>
+					</CardContent>
+				</Card>
+			}
+		>
+			<ProvidersContent />
+		</ClientOnly>
+	);
+}
+
+function ProvidersContent() {
 	const query = useProviderConfigs();
 	const deleteMutation = useDeleteProviderConfig();
 	const [formOpen, setFormOpen] = useState(false);
