@@ -10,7 +10,7 @@
 		"typecheck": "tsr generate && tsc --noEmit"
 	},
 	"dependencies": {
-		"@clerk/clerk-react": "^5.21.0",
+		"@clerk/clerk-react": "^5.61.8",
 		"@katto/design-system": "workspace:*",
 		"@katto/sdk": "workspace:*",
 		"@tanstack/react-form": "^0.41.0",
