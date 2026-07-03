@@ -1,0 +1,73 @@
+import type { Context } from "hono";
+import { z } from "zod";
+
+/**
+ * Schemas for provider config requests. `apiToken` is optional (defaulting to
+ * an empty string) so tokenless providers such as local Ollama are supported.
+ */
+export const providerConfigCreateSchema = z.object({
+	name: z.string().min(1).max(100),
+	baseUrl: z.string().min(1).max(500),
+	apiToken: z.string().max(1000).optional(),
+	defaultModel: z.string().max(200).optional(),
+});
+
+export const providerConfigUpdateSchema = z.object({
+	name: z.string().min(1).max(100).optional(),
+	baseUrl: z.string().min(1).max(500).optional(),
+	apiToken: z.string().max(1000).optional(),
+	defaultModel: z.string().max(200).optional(),
+});
+
+export const providerConfigTestSchema = z.object({
+	baseUrl: z.string().min(1).max(500),
+	apiToken: z.string().max(1000).optional(),
+	defaultModel: z.string().max(200).optional(),
+});
+
+export type ProviderConfigCreate = z.infer<typeof providerConfigCreateSchema>;
+export type ProviderConfigUpdate = z.infer<typeof providerConfigUpdateSchema>;
+export type ProviderConfigTest = z.infer<typeof providerConfigTestSchema>;
+
+export interface ValidationOk<T> {
+	ok: true;
+	data: T;
+}
+
+export interface ValidationFail {
+	ok: false;
+	message: string;
+	issues?: Array<{ path: string; message: string }>;
+}
+
+export type ValidationResult<T> = ValidationOk<T> | ValidationFail;
+
+/**
+ * Parses a JSON request body against a zod schema. Returns a discriminated
+ * result so callers build the error response themselves (no double-send).
+ */
+export async function validateBody<T>(
+	c: Context,
+	schema: z.ZodType<T>,
+): Promise<ValidationResult<T>> {
+	let json: unknown;
+	try {
+		json = await c.req.json();
+	} catch {
+		return { ok: false, message: "Invalid JSON body" };
+	}
+
+	const result = schema.safeParse(json);
+	if (!result.success) {
+		return {
+			ok: false,
+			message: "Validation failed",
+			issues: result.error.issues.map((issue) => ({
+				path: issue.path.join("."),
+				message: issue.message,
+			})),
+		};
+	}
+
+	return { ok: true, data: result.data };
+}

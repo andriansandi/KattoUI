@@ -5,6 +5,7 @@ import { requireAuth } from "./middleware/auth.js";
 import { chatRoute } from "./routes/chat.js";
 import { healthRoute } from "./routes/health.js";
 import { modelsRoute } from "./routes/models.js";
+import { providerConfigsRoute } from "./routes/provider-configs.js";
 import { providersRoute } from "./routes/providers.js";
 import type { Env } from "./types.js";
 
@@ -25,6 +26,8 @@ app.route("/health", healthRoute);
 
 app.use("/providers", requireAuth);
 app.route("/providers", providersRoute);
+
+app.route("/provider-configs", providerConfigsRoute);
 
 app.use("/models", requireAuth);
 app.route("/models", modelsRoute);
