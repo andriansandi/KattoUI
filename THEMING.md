@@ -108,14 +108,14 @@ export const oceanTheme: ThemeDefinition = {
       letterSpacing: { tight: "-0.025em", normal: "0", wide: "0.025em" },
     },
     spacing: { "1": "0.25rem", "2": "0.5rem", "4": "1rem" /* ... */ },
-    radius: { sm: "0.375rem", md: "0.5rem", lg: "0.75rem", full: "9999px" },
+    radius: { sm: "0.375rem", md: "0.5rem", lg: "1.25rem", xl: "1.5rem", full: "9999px" },
     shadows: {
       sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
       md: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
     },
     animations: {
       "duration-fast": "150ms",
-      "duration-normal": "250ms",
+      "duration-normal": "220ms",
       "ease-out": "cubic-bezier(0, 0, 0.2, 1)",
     },
   },

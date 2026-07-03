@@ -1,187 +1,225 @@
 # KattoUI Roadmap
 
-This roadmap tracks the high-level phases for building KattoUI. Each phase delivers a runnable milestone and lays the groundwork for the next one. Dates are intentional, not deadlines.
+> Build the best AI chat interface first.
+> Everything else extends from it.
+
+The chat experience is the product. Providers, models, plugins, agents, and the marketplace are extensions. Each phase delivers one polished experience and leaves KattoUI feeling complete rather than incomplete.
 
 ---
 
-## Phase 0 — Foundation
+## Phase 0 — Foundation (complete)
 
-**Goal:** A working monorepo, dev environment, auth flow, and CI-ready tooling.
+**Goal:** A solid engineering foundation.
 
 **Deliverables:**
-- pnpm workspaces configured with `apps/` and `packages/` layout.
-- TanStack Start frontend running on port 5177.
-- Hono API worker running on port 8791 with `/health` route.
-- Clerk auth integrated on web and API.
-- Lint, format, typecheck, unit tests, and end-to-end tests wired up.
-- Core documentation (`README.md`, `ARCHITECTURE.md`, etc.).
-
-**Dependencies:** None.
+- Monorepo
+- Authentication
+- SDK contracts
+- Theme engine
+- API
+- Design system
+- Documentation
+- CI
+- Testing
 
 ---
 
-## Phase 1 — Landing & Onboarding
+## Phase 1 — Chat Experience
 
-**Goal:** A polished public landing page and a frictionless sign-in/sign-up experience.
+**Goal:** Deliver a chat interface people genuinely enjoy using every day.
+
+### Chat
+
+- Beautiful empty state
+- Streaming
+- Markdown
+- Syntax highlighting
+- Code blocks
+- Copy
+- Regenerate
+- Stop generation
+- Message editing
+- Auto scroll
+- Thinking indicator
+- Token usage
+- Keyboard shortcuts
+- Command palette
+
+### Conversations
+
+- Conversation list
+- Search conversations
+- Rename
+- Delete
+- Pin
+- Favorites
+- Responsive layout
+
+### UX
+
+- Fast
+- Minimal
+- Keyboard first
+- Smooth animations
+- Professional spacing
+- Cat personality without becoming cartoon
+
+**Success:** Users should feel comfortable replacing ChatGPT or Claude for their daily work.
+
+---
+
+## Phase 2 — Providers
+
+**Goal:** Connect every major AI provider through one consistent interface.
 
 **Deliverables:**
-- Public `index` route with feature overview.
-- Sign-in and sign-up routes wired to Clerk.
-- Post-auth onboarding flow (workspace name, default provider preference).
-- SEO-friendly meta and OpenGraph tags.
+- OpenAI
+- Anthropic
+- Gemini
+- OpenRouter
+- Cloudflare Workers AI
+- Ollama
 
-**Dependencies:** Phase 0.
+### Provider settings
+
+- API keys
+- Health
+- Latency
+- Default provider
+- Failover
+
+**Success:** Changing providers should never change the chat experience.
 
 ---
 
-## Phase 2 — Auth & Workspaces
+## Phase 3 — Models
 
-**Goal:** Multi-workspace support, user roles, and secure API key management.
+**Goal:** Make choosing models delightful.
 
 **Deliverables:**
-- Workspace switcher and member management.
-- Roles: owner, admin, member.
-- API key generation and revocation per workspace.
-- Per-workspace settings persistence (KV or D1).
+- Model picker
+- Favorites
+- Recent
+- Pinned
+- Search
+- Capabilities
+- Context window
+- Pricing
+- Reasoning badge
+- Vision badge
 
-**Dependencies:** Phase 1.
+**Success:** Model switching becomes effortless.
 
 ---
 
-## Phase 3 — Dashboard
+## Phase 4 — Themes
 
-**Goal:** A central hub that surfaces recent activity, models, and quick actions.
+**Goal:** Build KattoUI's identity.
+
+### Built-in themes
+
+- Katto
+- Midnight
+- Cloudflare
+
+### Focus
+
+Professional first. Cats only exist as subtle personality:
+
+- Paw loading
+- Empty state
+- Icons
+- Easter eggs
+- Motion
+
+Never cartoon.
+
+---
+
+## Phase 5 — Workspace
+
+**Goal:** Support teams.
 
 **Deliverables:**
-- Dashboard layout with sidebar and command palette.
-- Recent conversations list.
-- Model/provider status cards.
-- Quick-action shortcuts to start a chat or manage settings.
-
-**Dependencies:** Phase 2.
+- Workspace
+- Members
+- Roles
+- API keys
+- Shared conversations
 
 ---
 
-## Phase 4 — Chat
+## Phase 6 — Plugins
 
-**Goal:** Full streaming chat with history, branches, and tool support.
+**Goal:** Allow developers to extend KattoUI.
 
 **Deliverables:**
-- Conversation list and detail routes.
-- Streaming chat UI with markdown rendering and code blocks.
-- Message branching / edit-and-retry.
-- Tool-call rendering and confirmation.
-- Conversation persistence in D1.
-
-**Dependencies:** Phase 3.
+- Plugin SDK
+- Commands
+- Pages
+- Toolbar
+- Providers
+- Themes
+- Settings
 
 ---
 
-## Phase 5 — Providers
+## Phase 7 — Cloudflare Platform
 
-**Goal:** Support multiple AI providers through the `ProviderAdapter` interface.
+**Goal:** Leverage Cloudflare services.
 
 **Deliverables:**
-- OpenAI-compatible adapter.
-- Anthropic adapter.
-- Cloudflare Workers AI adapter via AI Gateway.
-- Provider health checks and fallback ordering.
-- Per-provider configuration UI.
-
-**Dependencies:** Phase 4.
+- AI Gateway
+- D1
+- KV
+- R2
+- Durable Objects
+- Vectorize
+- Queues
 
 ---
 
-## Phase 6 — Cloudflare Services
+## Phase 8 — MCP
 
-**Goal:** Deep Cloudflare integration for storage, caching, and AI at the edge.
+**Goal:** Become the best MCP client.
 
 **Deliverables:**
-- D1 schema for users, workspaces, conversations, messages, and API keys.
-- KV for session-backed caching and feature flags.
-- R2 for file and image asset storage.
-- Durable Objects for real-time rooms and presence.
-- AI Gateway routing and observability.
-- Vectorize for RAG index storage.
-- Queues for async jobs.
-- Hyperdrive if external databases are needed.
-
-**Dependencies:** Phase 5.
+- MCP servers
+- Tool registry
+- Resources
+- Prompt library
 
 ---
 
-## Phase 7 — Plugin SDK
+## Phase 9 — Agents
 
-**Goal:** A stable plugin surface so third-party code can extend KattoUI safely.
+**Goal:** Autonomous workflows.
 
 **Deliverables:**
-- Runtime plugin loader.
-- Manifest validation with Zod.
-- Permission model enforced by the host.
-- Storage, network, and MCP access controls.
-- Plugin settings panels and toolbar actions.
-- Plugin marketplace listing format.
-
-**Dependencies:** Phase 4.
+- Memory
+- Scheduling
+- Background tasks
+- Agent designer
 
 ---
 
-## Phase 8 — Theme Marketplace
+## Phase 10 — Marketplace
 
-**Goal:** Users can install, preview, and switch themes without code changes.
+**Goal:** Community ecosystem.
 
 **Deliverables:**
-- Theme gallery UI.
-- Theme import/export format.
-- Theme preview mode.
-- Community theme submissions.
-
-**Dependencies:** Phase 7.
-
----
-
-## Phase 9 — MCP
-
-**Goal:** KattoUI works as an MCP client and host, letting models use external tools.
-
-**Deliverables:**
-- MCP client implementation.
-- Tool registry populated from MCP servers.
-- Server configuration UI.
-- Secure execution context for MCP tools.
-
-**Dependencies:** Phase 7.
+- Plugins
+- Themes
+- Agents
+- MCP servers
+- Prompt packs
 
 ---
 
-## Phase 10 — Agents
+## Product Philosophy
 
-**Goal:** Stateful, long-running agents using Cloudflare Agents SDK.
+KattoUI does not try to expose every capability on day one. Instead, every release expands naturally from one polished experience:
 
-**Deliverables:**
-- Agent orchestration on Durable Objects.
-- Agent memory and scheduled tasks.
-- Agent designer UI.
-- Tool use and multi-step workflows.
+Chat → Providers → Models → Themes → Workspace → Plugins → Cloudflare → MCP → Agents → Marketplace
 
-**Dependencies:** Phase 9.
-
----
-
-## Phase 11 — Marketplace
-
-**Goal:** A discoverable marketplace for plugins, themes, agents, and MCP servers.
-
-**Deliverables:**
-- In-app marketplace browsing and install flow.
-- Versioning and update notifications.
-- Publisher verification.
-- Review and rating system.
-
-**Dependencies:** Phases 7, 8, 10.
-
----
-
-## Current phase
-
-We are in **Phase 0 — Foundation**. The monorepo, dev servers, auth, and core documentation are in place. Next, we move into Phase 1: Landing & Onboarding.
+The interface should evolve alongside the roadmap. Users should never feel overwhelmed by unfinished features. Every phase should leave KattoUI feeling complete rather than incomplete.
