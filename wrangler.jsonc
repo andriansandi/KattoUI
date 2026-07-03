@@ -5,5 +5,13 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"vars": {
 		"ENVIRONMENT": "production"
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "katto-ui-db",
+			"database_id": "c67ad5bb-fa28-48ea-ba24-8cea65399471",
+			"migrations_dir": "apps/api/db/migrations"
+		}
+	]
 }
