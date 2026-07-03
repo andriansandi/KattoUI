@@ -1,0 +1,1 @@
+ALTER TABLE `provider_configs` ADD `type` text DEFAULT 'openai' NOT NULL;

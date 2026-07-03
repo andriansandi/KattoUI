@@ -1,5 +1,6 @@
 export interface Env {
 	ENVIRONMENT: string;
+	GUEST_MODE: string;
 	CLERK_SECRET_KEY: string;
 	CLERK_PUBLISHABLE_KEY: string;
 	DB: D1Database;

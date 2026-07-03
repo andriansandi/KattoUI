@@ -32,12 +32,18 @@ importers:
       '@clerk/backend':
         specifier: ^1.21.0
         version: 1.34.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@katto/sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)
       hono:
         specifier: ^4.6.0
         version: 4.12.27
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20260702.1

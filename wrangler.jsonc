@@ -4,7 +4,8 @@
 	"compatibility_date": "2024-12-01",
 	"compatibility_flags": ["nodejs_compat"],
 	"vars": {
-		"ENVIRONMENT": "production"
+		"ENVIRONMENT": "production",
+		"GUEST_MODE": "true"
 	},
 	"d1_databases": [
 		{
