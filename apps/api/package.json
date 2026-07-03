@@ -4,10 +4,10 @@
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev --port 8791",
-		"deploy": "wrangler deploy",
+		"dev": "wrangler dev --config ../../wrangler.jsonc --port 8791",
+		"deploy": "wrangler deploy --config ../../wrangler.jsonc",
 		"typecheck": "tsc --noEmit",
-		"tail": "wrangler tail"
+		"tail": "wrangler tail --config ../../wrangler.jsonc"
 	},
 	"dependencies": {
 		"@clerk/backend": "^1.21.0",

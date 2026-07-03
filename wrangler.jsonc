@@ -1,9 +1,9 @@
 {
-	"name": "katto-api",
-	"main": "src/index.ts",
+	"name": "katto-ui",
+	"main": "apps/api/src/index.ts",
 	"compatibility_date": "2024-12-01",
 	"compatibility_flags": ["nodejs_compat"],
 	"vars": {
-		"ENVIRONMENT": "development"
+		"ENVIRONMENT": "production"
 	}
 }
