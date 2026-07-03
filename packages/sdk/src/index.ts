@@ -1,4 +1,5 @@
 export * from "./auth.js";
+export * from "./chat.js";
 export * from "./command.js";
 export * from "./feature-flag.js";
 export * from "./keyboard.js";

@@ -22,6 +22,8 @@ The chat experience is the product. Providers, models, plugins, agents, and the 
 - CI
 - Testing
 
+**Success:** A new contributor can run `pnpm install && pnpm dev` and see the app and API within five minutes.
+
 ---
 
 ## Phase 1 — Chat Experience
@@ -64,7 +66,7 @@ The chat experience is the product. Providers, models, plugins, agents, and the 
 - Professional spacing
 - Cat personality without becoming cartoon
 
-**Success:** Users should feel comfortable replacing ChatGPT or Claude for their daily work.
+**Success:** Sub-second time-to-first-token locally; conversation history loads in < 300ms. Users should feel comfortable replacing ChatGPT or Claude for their daily work.
 
 ---
 
@@ -88,7 +90,7 @@ The chat experience is the product. Providers, models, plugins, agents, and the 
 - Default provider
 - Failover
 
-**Success:** Changing providers should never change the chat experience.
+**Success:** Changing providers should never change the chat experience. Users can switch providers mid-conversation without data loss.
 
 ---
 
@@ -134,6 +136,8 @@ Professional first. Cats only exist as subtle personality:
 
 Never cartoon.
 
+**Success:** Any theme can be previewed before applying.
+
 ---
 
 ## Phase 5 — Workspace
@@ -146,6 +150,8 @@ Never cartoon.
 - Roles
 - API keys
 - Shared conversations
+
+**Success:** Users can create/join a workspace, invite members, and rotate API keys without downtime.
 
 ---
 
@@ -162,6 +168,8 @@ Never cartoon.
 - Themes
 - Settings
 
+**Success:** A third-party plugin can be installed and uninstalled without host code changes.
+
 ---
 
 ## Phase 7 — Cloudflare Platform
@@ -177,6 +185,8 @@ Never cartoon.
 - Vectorize
 - Queues
 
+**Success:** All chat state and assets live in Cloudflare-bound services.
+
 ---
 
 ## Phase 8 — MCP
@@ -188,6 +198,8 @@ Never cartoon.
 - Tool registry
 - Resources
 - Prompt library
+
+**Success:** Users can connect an MCP server and invoke tools from chat.
 
 ---
 
@@ -201,6 +213,8 @@ Never cartoon.
 - Background tasks
 - Agent designer
 
+**Success:** Agents can run multi-step workflows autonomously and report status.
+
 ---
 
 ## Phase 10 — Marketplace
@@ -213,6 +227,8 @@ Never cartoon.
 - Agents
 - MCP servers
 - Prompt packs
+
+**Success:** Curated marketplace items install with one click and update automatically.
 
 ---
 

@@ -11,11 +11,13 @@
 	},
 	"dependencies": {
 		"@clerk/backend": "^1.21.0",
+		"drizzle-orm": "^0.45.2",
 		"hono": "^4.6.0"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20260702.1",
 		"@katto/tsconfig": "workspace:*",
+		"drizzle-kit": "^0.31.10",
 		"typescript": "^5.7.0",
 		"wrangler": "^4.106.0"
 	}
