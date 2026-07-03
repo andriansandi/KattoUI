@@ -30,9 +30,25 @@ export const providerConfigTestSchema = z.object({
 	defaultModel: z.string().max(200).optional(),
 });
 
+export const conversationCreateSchema = z.object({
+	title: z.string().min(1).max(200).optional(),
+	model: z.string().max(200).optional(),
+	providerConfigId: z.string().max(200).optional(),
+});
+
+export const conversationUpdateSchema = z.object({
+	title: z.string().min(1).max(200).optional(),
+	model: z.string().max(200).optional(),
+	pinned: z.boolean().optional(),
+	favorited: z.boolean().optional(),
+	providerConfigId: z.string().max(200).nullable().optional(),
+});
+
 export type ProviderConfigCreate = z.infer<typeof providerConfigCreateSchema>;
 export type ProviderConfigUpdate = z.infer<typeof providerConfigUpdateSchema>;
 export type ProviderConfigTest = z.infer<typeof providerConfigTestSchema>;
+export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
+export type ConversationUpdate = z.infer<typeof conversationUpdateSchema>;
 
 export interface ValidationOk<T> {
 	ok: true;
