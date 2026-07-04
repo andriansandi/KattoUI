@@ -283,9 +283,21 @@ function ConversationItem({
 				}}
 			>
 				<p className="truncate text-sm font-medium">{conversation.title}</p>
-				<p className="text-xs text-muted-foreground">
-					{formatRelativeTime(conversation.updatedAt)}
-				</p>
+				{conversation.preview?.firstUser ? (
+					<p className="truncate text-xs text-muted-foreground">
+						<span className="text-foreground/70">You:</span>{" "}
+						{conversation.preview.firstUser.content}
+					</p>
+				) : (
+					<p className="truncate text-xs text-muted-foreground">
+						{formatRelativeTime(conversation.updatedAt)}
+					</p>
+				)}
+				{conversation.preview?.lastAssistant ? (
+					<p className="truncate text-xs text-muted-foreground/70">
+						{conversation.preview.lastAssistant.content}
+					</p>
+				) : null}
 			</Link>
 			<div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover:flex">
 				<Button

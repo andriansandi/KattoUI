@@ -1,8 +1,14 @@
-import type { Conversation, ConversationSummary, StoredMessage } from "@katto/sdk/chat";
-import { and, asc, desc, eq } from "drizzle-orm";
+import type {
+	Conversation,
+	ConversationSummary,
+	MessagePreview,
+	StoredMessage,
+} from "@katto/sdk/chat";
+import { and, asc, count, desc, eq, inArray, max, min } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb } from "../../db/index.js";
-import { conversations, messages } from "../../db/schema.js";
+import { conversations, messages, providerConfigs } from "../../db/schema.js";
+import { completeChat } from "../lib/provider-complete.js";
 import {
 	conversationCreateSchema,
 	conversationUpdateSchema,
@@ -35,7 +41,10 @@ function toConversation(row: typeof conversations.$inferSelect): Conversation {
 	return conversation;
 }
 
-function toSummary(row: typeof conversations.$inferSelect): ConversationSummary {
+function toSummary(
+	row: typeof conversations.$inferSelect,
+	preview?: MessagePreview,
+): ConversationSummary {
 	const summary: ConversationSummary = {
 		id: row.id,
 		title: row.title,
@@ -45,6 +54,9 @@ function toSummary(row: typeof conversations.$inferSelect): ConversationSummary 
 	};
 	if (row.model !== null) {
 		summary.model = row.model;
+	}
+	if (preview !== undefined) {
+		summary.preview = preview;
 	}
 	return summary;
 }
@@ -72,6 +84,75 @@ function toMessage(row: typeof messages.$inferSelect): StoredMessage {
 	return message;
 }
 
+const PREVIEW_SNIPPET_LIMIT = 80;
+const AUTO_TITLE_LIMIT = 50;
+const DEFAULT_TITLE = "New Chat";
+
+function truncate(text: string, limit: number): string {
+	if (text.length <= limit) return text;
+	return `${text.slice(0, limit).trimEnd()}…`;
+}
+
+function cleanTitle(raw: string, limit: number): string {
+	const trimmed = raw
+		.trim()
+		.replace(/^["'`]+|["'`]+$/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+	if (trimmed.length === 0) return "";
+	return truncate(trimmed, limit);
+}
+
+async function fetchPreviews(
+	db: ReturnType<typeof createDb>,
+	conversationIds: string[],
+): Promise<Map<string, MessagePreview>> {
+	const map = new Map<string, MessagePreview>();
+	if (conversationIds.length === 0) return map;
+
+	const firstUserRows = await db
+		.select({
+			conversationId: messages.conversationId,
+			createdAt: min(messages.createdAt),
+			content: messages.content,
+		})
+		.from(messages)
+		.where(and(inArray(messages.conversationId, conversationIds), eq(messages.role, "user")))
+		.groupBy(messages.conversationId);
+
+	for (const row of firstUserRows) {
+		if (row.createdAt === null) continue;
+		map.set(row.conversationId, {
+			firstUser: {
+				content: truncate(row.content, PREVIEW_SNIPPET_LIMIT),
+				createdAt: row.createdAt,
+			},
+		});
+	}
+
+	const lastAssistantRows = await db
+		.select({
+			conversationId: messages.conversationId,
+			createdAt: max(messages.createdAt),
+			content: messages.content,
+		})
+		.from(messages)
+		.where(and(inArray(messages.conversationId, conversationIds), eq(messages.role, "assistant")))
+		.groupBy(messages.conversationId);
+
+	for (const row of lastAssistantRows) {
+		if (row.createdAt === null) continue;
+		const existing = map.get(row.conversationId) ?? {};
+		existing.lastAssistant = {
+			content: truncate(row.content, PREVIEW_SNIPPET_LIMIT),
+			createdAt: row.createdAt,
+		};
+		map.set(row.conversationId, existing);
+	}
+
+	return map;
+}
+
 app.get("/", async (c) => {
 	const userId = c.get("userId");
 	const db = createDb(c.env.DB);
@@ -82,7 +163,14 @@ app.get("/", async (c) => {
 		.where(eq(conversations.userId, userId))
 		.orderBy(desc(conversations.updatedAt));
 
-	return c.json({ conversations: rows.map(toSummary) });
+	const previews = await fetchPreviews(
+		db,
+		rows.map((r) => r.id),
+	);
+
+	return c.json({
+		conversations: rows.map((r) => toSummary(r, previews.get(r.id))),
+	});
 });
 
 app.post("/", async (c) => {
@@ -213,7 +301,7 @@ app.post("/:id/messages", async (c) => {
 	const db = createDb(c.env.DB);
 
 	const [existing] = await db
-		.select({ id: conversations.id })
+		.select({ id: conversations.id, title: conversations.title })
 		.from(conversations)
 		.where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
 		.limit(1);
@@ -243,9 +331,114 @@ app.post("/:id/messages", async (c) => {
 		return c.json({ error: "Failed to create message" }, 500);
 	}
 
-	await db.update(conversations).set({ updatedAt: now }).where(eq(conversations.id, id));
+	let autoTitle: string | undefined;
+	if (data.role === "user" && existing.title === DEFAULT_TITLE) {
+		const [countRow] = await db
+			.select({ n: count() })
+			.from(messages)
+			.where(and(eq(messages.conversationId, id), eq(messages.role, "user")));
+		if ((countRow?.n ?? 0) === 1) {
+			autoTitle = truncate(data.content, AUTO_TITLE_LIMIT);
+		}
+	}
+
+	await db
+		.update(conversations)
+		.set({
+			updatedAt: now,
+			...(autoTitle !== undefined && { title: autoTitle }),
+		})
+		.where(eq(conversations.id, id));
 
 	return c.json(toMessage(created), 201);
+});
+
+app.post("/:id/generate-title", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const db = createDb(c.env.DB);
+
+	const [conv] = await db
+		.select()
+		.from(conversations)
+		.where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+		.limit(1);
+
+	if (!conv) {
+		return c.json({ error: "Conversation not found" }, 404);
+	}
+
+	let config: typeof providerConfigs.$inferSelect | null = null;
+	if (conv.providerConfigId) {
+		const [pc] = await db
+			.select()
+			.from(providerConfigs)
+			.where(and(eq(providerConfigs.id, conv.providerConfigId), eq(providerConfigs.userId, userId)))
+			.limit(1);
+		config = pc ?? null;
+	} else {
+		const [pc] = await db
+			.select()
+			.from(providerConfigs)
+			.where(eq(providerConfigs.userId, userId))
+			.orderBy(desc(providerConfigs.createdAt))
+			.limit(1);
+		config = pc ?? null;
+	}
+
+	const model = conv.model ?? config?.defaultModel ?? null;
+	if (!config || !model) {
+		return c.json({ title: conv.title, generated: false });
+	}
+
+	const [firstUser] = await db
+		.select()
+		.from(messages)
+		.where(and(eq(messages.conversationId, id), eq(messages.role, "user")))
+		.orderBy(asc(messages.createdAt))
+		.limit(1);
+
+	if (!firstUser) {
+		return c.json({ title: conv.title, generated: false });
+	}
+
+	const autoTitle = truncate(firstUser.content, AUTO_TITLE_LIMIT);
+	if (conv.title !== DEFAULT_TITLE && conv.title !== autoTitle) {
+		return c.json({ title: conv.title, generated: false });
+	}
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), 10_000);
+
+	try {
+		const raw = await completeChat({
+			type: config.type,
+			baseUrl: config.baseUrl,
+			apiToken: config.apiToken,
+			model,
+			systemPrompt:
+				"Generate a concise title (at most 6 words) for this conversation. Reply with the title only — no quotes, no trailing punctuation.",
+			messages: [{ role: "user", content: firstUser.content }],
+			maxTokens: 20,
+			signal: controller.signal,
+		});
+
+		const title = cleanTitle(raw, AUTO_TITLE_LIMIT);
+		if (!title) {
+			return c.json({ title: conv.title, generated: false });
+		}
+
+		await db
+			.update(conversations)
+			.set({ title, updatedAt: Date.now() })
+			.where(eq(conversations.id, id));
+
+		return c.json({ title, generated: true });
+	} catch {
+		return c.json({ title: conv.title, generated: false });
+	} finally {
+		clearTimeout(timer);
+	}
 });
 
 export { app as conversationsRoute };

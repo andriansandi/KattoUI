@@ -45,6 +45,18 @@ export interface Conversation {
 	updatedAt: number;
 }
 
+/** A single message snippet used for list previews. */
+export interface MessagePreviewSnippet {
+	content: string;
+	createdAt: number;
+}
+
+/** Preview snippets for a conversation, used in sidebar list views. */
+export interface MessagePreview {
+	firstUser?: MessagePreviewSnippet;
+	lastAssistant?: MessagePreviewSnippet;
+}
+
 /** A conversation summary for list views. */
 export interface ConversationSummary {
 	id: string;
@@ -53,6 +65,7 @@ export interface ConversationSummary {
 	pinned: boolean;
 	favorited: boolean;
 	updatedAt: number;
+	preview?: MessagePreview;
 }
 
 /** Input for creating a conversation. */

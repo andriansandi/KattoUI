@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { Button } from "~/components/ui/button";
 import { useAuthFetch } from "~/lib/auth-fetch";
-import { useCreateConversation } from "~/lib/queries/conversations";
+import { useCreateConversation, useGenerateTitle } from "~/lib/queries/conversations";
 import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
@@ -16,6 +16,7 @@ function ChatEmptyState() {
 	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 	const navigate = useNavigate();
 	const createConversation = useCreateConversation();
+	const generateTitle = useGenerateTitle();
 	const authFetch = useAuthFetch();
 	const [input, setInput] = useState("");
 	const [isStarting, setIsStarting] = useState(false);
@@ -34,6 +35,7 @@ function ChatEmptyState() {
 			}).catch(() => {
 				// If message send fails, navigate anyway — the conversation exists.
 			});
+			generateTitle.mutate(conversation.id);
 			navigate({ to: "/chat/$conversationId", params: { conversationId: conversation.id } });
 			setMobileSidebarOpen(false);
 		} catch {
