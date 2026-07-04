@@ -11,7 +11,7 @@ export function AppShell({ children }: AppShellProps) {
 	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 
 	return (
-		<div className="flex h-screen w-full bg-background text-foreground">
+		<div className="flex h-dvh w-full bg-background text-foreground">
 			<div
 				className={cn(
 					"fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-200 md:static md:z-auto md:translate-x-0",

@@ -16,10 +16,7 @@ export function ChatHeader({ title, model, onToggleMobileSidebar }: ChatHeaderPr
 				<span className="sr-only">Toggle sidebar</span>
 			</Button>
 			<h1 className="flex-1 truncate text-sm font-semibold">{title}</h1>
-			<Badge
-				variant="secondary"
-				className="hidden font-normal text-muted-foreground sm:inline-flex"
-			>
+			<Badge variant="secondary" className="font-normal text-muted-foreground">
 				{model ?? "No model"}
 			</Badge>
 			<Button variant="ghost" size="icon" aria-label="More">

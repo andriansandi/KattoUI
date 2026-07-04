@@ -18,7 +18,7 @@ function ChatEmptyState() {
 	}
 
 	return (
-		<div className="relative mx-auto flex h-full w-full max-w-[860px] flex-col px-4">
+		<div className="relative flex h-full w-full flex-col">
 			<Button
 				variant="ghost"
 				size="icon"
@@ -37,7 +37,7 @@ function ChatEmptyState() {
 					Pick a model and send your first message.
 				</p>
 			</div>
-			<div className="pb-4 pt-2">
+			<div className="px-4 pb-4 pt-2">
 				<ChatComposer value={input} onChange={setInput} onSend={handleSend} />
 			</div>
 		</div>

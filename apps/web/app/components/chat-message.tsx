@@ -28,7 +28,7 @@ export function MessageItem({ role, content }: MessageItemProps) {
 		>
 			<div
 				className={cn(
-					"max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+					"max-w-[768px] rounded-2xl px-4 py-3 text-sm leading-relaxed",
 					isUser
 						? "rounded-br-md bg-primary text-primary-foreground"
 						: "rounded-bl-md bg-muted/40 text-foreground",

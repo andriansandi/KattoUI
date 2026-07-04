@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { ChatHeader } from "~/components/chat-header";
 import { MessageItem } from "~/components/chat-message";
@@ -36,6 +36,14 @@ function ChatConversationPage() {
 	]);
 	const [input, setInput] = useState("");
 
+	const scrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el || messages.length === 0) return;
+		el.scrollTop = el.scrollHeight;
+	}, [messages]);
+
 	function handleSend() {
 		if (!input.trim()) return;
 		setMessages((prev) => [...prev, { role: "user", content: input }]);
@@ -52,18 +60,18 @@ function ChatConversationPage() {
 	}
 
 	return (
-		<div className="mx-auto flex h-full max-w-[860px] flex-col px-4">
+		<div className="flex h-full w-full flex-col">
 			<ChatHeader
 				title={conversation?.title ?? "Chat"}
 				model={conversation?.model}
 				onToggleMobileSidebar={toggleMobileSidebar}
 			/>
-			<div className="flex-1 space-y-6 overflow-y-auto py-6">
+			<div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
 				{messages.map((m, i) => (
 					<MessageItem key={i.toString()} role={m.role} content={m.content} />
 				))}
 			</div>
-			<div className="pb-4 pt-2">
+			<div className="px-4 pb-4 pt-2">
 				<ChatComposer value={input} onChange={setInput} onSend={handleSend} />
 			</div>
 		</div>
