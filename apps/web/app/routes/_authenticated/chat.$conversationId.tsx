@@ -5,7 +5,7 @@ import { ChatHeader } from "~/components/chat-header";
 import { MessageItem } from "~/components/chat-message";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useConversations } from "~/lib/queries/conversations";
+import { useConversations, useGenerateTitle } from "~/lib/queries/conversations";
 import { useCreateMessage, useMessages } from "~/lib/queries/messages";
 import { useUIStore } from "~/stores/ui-store";
 
@@ -23,6 +23,7 @@ function ChatConversationPage() {
 
 	const { data, isLoading, isError, refetch } = useMessages(conversationId);
 	const createMessage = useCreateMessage(conversationId);
+	const generateTitle = useGenerateTitle();
 
 	const [input, setInput] = useState("");
 
@@ -37,7 +38,15 @@ function ChatConversationPage() {
 
 	function handleSend() {
 		if (!input.trim()) return;
-		createMessage.mutate({ role: "user", content: input });
+		const isFirst = messages.length === 0;
+		createMessage.mutate(
+			{ role: "user", content: input },
+			{
+				onSuccess: () => {
+					if (isFirst) generateTitle.mutate(conversationId);
+				},
+			},
+		);
 		setInput("");
 	}
 

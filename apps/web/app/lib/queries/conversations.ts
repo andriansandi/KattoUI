@@ -117,3 +117,22 @@ export function useDeleteConversation() {
 		},
 	});
 }
+
+interface GenerateTitleResponse {
+	title: string;
+	generated: boolean;
+}
+
+export function useGenerateTitle() {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (id: string) =>
+			authFetch<GenerateTitleResponse>(`/conversations/${id}/generate-title`, {
+				method: "POST",
+			}),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: QUERY_KEY });
+		},
+	});
+}
