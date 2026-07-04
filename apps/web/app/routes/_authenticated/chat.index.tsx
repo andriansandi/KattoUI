@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Menu, PawPrint } from "lucide-react";
 import { useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { Button } from "~/components/ui/button";
+import { useAuthFetch } from "~/lib/auth-fetch";
+import { useCreateConversation } from "~/lib/queries/conversations";
 import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
@@ -11,10 +13,34 @@ export const Route = createFileRoute("/_authenticated/chat/")({
 
 function ChatEmptyState() {
 	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
+	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
+	const navigate = useNavigate();
+	const createConversation = useCreateConversation();
+	const authFetch = useAuthFetch();
 	const [input, setInput] = useState("");
+	const [isStarting, setIsStarting] = useState(false);
 
-	function handleSend() {
+	async function handleSend() {
+		if (!input.trim() || isStarting) return;
+		const content = input.trim();
 		setInput("");
+		setIsStarting(true);
+
+		try {
+			const conversation = await createConversation.mutateAsync({});
+			await authFetch<unknown>(`/conversations/${conversation.id}/messages`, {
+				method: "POST",
+				body: JSON.stringify({ role: "user", content }),
+			}).catch(() => {
+				// If message send fails, navigate anyway — the conversation exists.
+			});
+			navigate({ to: "/chat/$conversationId", params: { conversationId: conversation.id } });
+			setMobileSidebarOpen(false);
+		} catch {
+			setInput(content);
+		} finally {
+			setIsStarting(false);
+		}
 	}
 
 	return (
@@ -38,7 +64,7 @@ function ChatEmptyState() {
 				</p>
 			</div>
 			<div className="px-4 pb-4 pt-2">
-				<ChatComposer value={input} onChange={setInput} onSend={handleSend} />
+				<ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={isStarting} />
 			</div>
 		</div>
 	);
