@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const providerConfigs = sqliteTable("provider_configs", {
 	id: text("id").primaryKey(),
@@ -26,16 +26,20 @@ export const conversations = sqliteTable("conversations", {
 	updatedAt: integer("updated_at").notNull(),
 });
 
-export const messages = sqliteTable("messages", {
-	id: text("id").primaryKey(),
-	conversationId: text("conversation_id")
-		.notNull()
-		.references(() => conversations.id, { onDelete: "cascade" }),
-	role: text("role", { enum: ["system", "user", "assistant"] }).notNull(),
-	content: text("content").notNull(),
-	model: text("model"),
-	tokensPrompt: integer("tokens_prompt"),
-	tokensCompletion: integer("tokens_completion"),
-	tokensTotal: integer("tokens_total"),
-	createdAt: integer("created_at").notNull(),
-});
+export const messages = sqliteTable(
+	"messages",
+	{
+		id: text("id").primaryKey(),
+		conversationId: text("conversation_id")
+			.notNull()
+			.references(() => conversations.id, { onDelete: "cascade" }),
+		role: text("role", { enum: ["system", "user", "assistant"] }).notNull(),
+		content: text("content").notNull(),
+		model: text("model"),
+		tokensPrompt: integer("tokens_prompt"),
+		tokensCompletion: integer("tokens_completion"),
+		tokensTotal: integer("tokens_total"),
+		createdAt: integer("created_at").notNull(),
+	},
+	(table) => [index("messages_conversation_id_idx").on(table.conversationId)],
+);

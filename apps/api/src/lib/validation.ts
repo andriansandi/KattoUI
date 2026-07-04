@@ -44,11 +44,21 @@ export const conversationUpdateSchema = z.object({
 	providerConfigId: z.string().max(200).nullable().optional(),
 });
 
+export const messageCreateSchema = z.object({
+	role: z.enum(["system", "user", "assistant"]),
+	content: z.string().min(1).max(100_000),
+	model: z.string().max(200).optional(),
+	tokensPrompt: z.number().int().nonnegative().optional(),
+	tokensCompletion: z.number().int().nonnegative().optional(),
+	tokensTotal: z.number().int().nonnegative().optional(),
+});
+
 export type ProviderConfigCreate = z.infer<typeof providerConfigCreateSchema>;
 export type ProviderConfigUpdate = z.infer<typeof providerConfigUpdateSchema>;
 export type ProviderConfigTest = z.infer<typeof providerConfigTestSchema>;
 export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
 export type ConversationUpdate = z.infer<typeof conversationUpdateSchema>;
+export type MessageCreate = z.infer<typeof messageCreateSchema>;
 
 export interface ValidationOk<T> {
 	ok: true;
