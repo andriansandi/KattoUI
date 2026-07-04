@@ -1,8 +1,11 @@
+import { UserButton } from "@clerk/clerk-react";
 import type { ConversationSummary } from "@katto/sdk";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Check, MessageSquarePlus, Pencil, Search, Trash2, X } from "lucide-react";
+import { Check, MessageSquarePlus, Pencil, Search, Settings, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ClientOnly } from "~/components/client-only";
+import { KattoLogo } from "~/components/logo";
+import { Avatar } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -13,6 +16,7 @@ import {
 	useDeleteConversation,
 	useUpdateConversation,
 } from "~/lib/queries/conversations";
+import { useUIStore } from "~/stores/ui-store";
 
 function formatRelativeTime(timestamp: number): string {
 	const diff = Date.now() - timestamp;
@@ -27,18 +31,19 @@ function formatRelativeTime(timestamp: number): string {
 	return "just now";
 }
 
-export function ConversationSidebar() {
+export function ChatSidebar() {
 	return (
-		<ClientOnly fallback={<aside className="w-64 flex-shrink-0 border-r bg-card" />}>
-			<SidebarContent />
+		<ClientOnly fallback={<div className="h-full w-full border-r bg-card" />}>
+			<ChatSidebarContent />
 		</ClientOnly>
 	);
 }
 
-function SidebarContent() {
+function ChatSidebarContent() {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const activeId = pathname.match(/^\/chat\/(.+)$/)?.[1];
 	const navigate = useNavigate();
+	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 
 	const [search, setSearch] = useState("");
 	const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,6 +66,7 @@ function SidebarContent() {
 			{
 				onSuccess: (conversation) => {
 					navigate({ to: "/chat/$conversationId", params: { conversationId: conversation.id } });
+					setMobileSidebarOpen(false);
 				},
 			},
 		);
@@ -90,25 +96,27 @@ function SidebarContent() {
 	}
 
 	return (
-		<aside className="flex w-64 flex-shrink-0 flex-col border-r bg-card">
-			<div className="flex h-14 items-center justify-between border-b px-4">
-				<h2 className="font-semibold">Chats</h2>
+		<aside className="flex h-full w-full flex-col border-r bg-card">
+			<div className="flex h-14 flex-shrink-0 items-center border-b px-4">
+				<Link to="/chat" className="flex items-center gap-2 font-semibold text-foreground">
+					<KattoLogo className="h-5 w-5 text-primary" />
+					<span>KattoUI</span>
+				</Link>
+			</div>
+
+			<div className="space-y-2 p-3">
 				<Button
-					variant="ghost"
-					size="icon"
+					className="w-full justify-start gap-2"
 					onClick={handleNewChat}
 					disabled={createMutation.isPending}
 				>
 					<MessageSquarePlus className="h-4 w-4" />
-					<span className="sr-only">New chat</span>
+					New Chat
 				</Button>
-			</div>
-
-			<div className="border-b p-3">
 				<div className="relative">
 					<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Search chats"
+						placeholder="Search conversations"
 						className="pl-9"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -154,10 +162,25 @@ function SidebarContent() {
 								onRequestDelete={() => setConfirmingDeleteId(c.id)}
 								onConfirmDelete={() => confirmDelete(c.id)}
 								onCancelDelete={() => setConfirmingDeleteId(null)}
+								onNavigate={() => setMobileSidebarOpen(false)}
 							/>
 						))}
 					</div>
 				)}
+			</div>
+
+			<div className="flex flex-shrink-0 items-center justify-between border-t p-3">
+				<Link
+					to="/settings/appearance"
+					className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+					onClick={() => setMobileSidebarOpen(false)}
+				>
+					<Settings className="h-4 w-4" />
+					Settings
+				</Link>
+				<ClientOnly fallback={<Avatar fallback="G" size="sm" />}>
+					<UserButton afterSignOutUrl="/" />
+				</ClientOnly>
 			</div>
 		</aside>
 	);
@@ -176,6 +199,7 @@ interface ConversationItemProps {
 	onRequestDelete: () => void;
 	onConfirmDelete: () => void;
 	onCancelDelete: () => void;
+	onNavigate: () => void;
 }
 
 function ConversationItem({
@@ -191,6 +215,7 @@ function ConversationItem({
 	onRequestDelete,
 	onConfirmDelete,
 	onCancelDelete,
+	onNavigate,
 }: ConversationItemProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -251,6 +276,7 @@ function ConversationItem({
 				to="/chat/$conversationId"
 				params={{ conversationId: conversation.id }}
 				className="min-w-0 flex-1 px-3 py-2"
+				onClick={onNavigate}
 				onDoubleClick={(e) => {
 					e.preventDefault();
 					onStartEdit();

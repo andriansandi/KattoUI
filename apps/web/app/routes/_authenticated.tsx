@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/clerk-react";
 import { Navigate, Outlet, createFileRoute } from "@tanstack/react-router";
-import { DashboardShell } from "~/components/dashboard-shell";
+import { AppShell } from "~/components/app-shell";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -12,9 +12,9 @@ const guestMode = import.meta.env.VITE_GUEST_MODE === "true";
 function AuthenticatedLayout() {
 	if (guestMode) {
 		return (
-			<DashboardShell>
+			<AppShell>
 				<Outlet />
-			</DashboardShell>
+			</AppShell>
 		);
 	}
 
@@ -40,8 +40,8 @@ function ClerkProtectedLayout() {
 	}
 
 	return (
-		<DashboardShell>
+		<AppShell>
 			<Outlet />
-		</DashboardShell>
+		</AppShell>
 	);
 }
