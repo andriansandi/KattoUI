@@ -10,7 +10,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 const settingsPages = [
 	{ to: "/settings/appearance", label: "Appearance" },
-	{ to: "/settings/models", label: "Models" },
 	{ to: "/settings/providers", label: "Providers" },
 	{ to: "/settings/cloudflare", label: "Cloudflare" },
 	{ to: "/settings/workspace", label: "Workspace" },

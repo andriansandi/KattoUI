@@ -24,7 +24,6 @@ import { Route as AuthenticatedSettingsThemesRouteImport } from "./routes/_authe
 import { Route as AuthenticatedSettingsSecurityRouteImport } from "./routes/_authenticated/settings/security"
 import { Route as AuthenticatedSettingsProvidersRouteImport } from "./routes/_authenticated/settings/providers"
 import { Route as AuthenticatedSettingsPluginsRouteImport } from "./routes/_authenticated/settings/plugins"
-import { Route as AuthenticatedSettingsModelsRouteImport } from "./routes/_authenticated/settings/models"
 import { Route as AuthenticatedSettingsCloudflareRouteImport } from "./routes/_authenticated/settings/cloudflare"
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from "./routes/_authenticated/settings/appearance"
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from "./routes/_authenticated/settings/api-keys"
@@ -112,12 +111,6 @@ const AuthenticatedSettingsPluginsRoute =
     path: "/plugins",
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedSettingsModelsRoute =
-  AuthenticatedSettingsModelsRouteImport.update({
-    id: "/models",
-    path: "/models",
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
 const AuthenticatedSettingsCloudflareRoute =
   AuthenticatedSettingsCloudflareRouteImport.update({
     id: "/cloudflare",
@@ -175,7 +168,6 @@ export interface FileRoutesByFullPath {
   "/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
   "/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
   "/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/settings/models": typeof AuthenticatedSettingsModelsRoute
   "/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
   "/settings/providers": typeof AuthenticatedSettingsProvidersRouteWithChildren
   "/settings/security": typeof AuthenticatedSettingsSecurityRoute
@@ -198,7 +190,6 @@ export interface FileRoutesByTo {
   "/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
   "/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
   "/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/settings/models": typeof AuthenticatedSettingsModelsRoute
   "/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
   "/settings/security": typeof AuthenticatedSettingsSecurityRoute
   "/settings/themes": typeof AuthenticatedSettingsThemesRoute
@@ -223,7 +214,6 @@ export interface FileRoutesById {
   "/_authenticated/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
   "/_authenticated/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
   "/_authenticated/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/_authenticated/settings/models": typeof AuthenticatedSettingsModelsRoute
   "/_authenticated/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
   "/_authenticated/settings/providers": typeof AuthenticatedSettingsProvidersRouteWithChildren
   "/_authenticated/settings/security": typeof AuthenticatedSettingsSecurityRoute
@@ -249,7 +239,6 @@ export interface FileRouteTypes {
     | "/settings/api-keys"
     | "/settings/appearance"
     | "/settings/cloudflare"
-    | "/settings/models"
     | "/settings/plugins"
     | "/settings/providers"
     | "/settings/security"
@@ -272,7 +261,6 @@ export interface FileRouteTypes {
     | "/settings/api-keys"
     | "/settings/appearance"
     | "/settings/cloudflare"
-    | "/settings/models"
     | "/settings/plugins"
     | "/settings/security"
     | "/settings/themes"
@@ -296,7 +284,6 @@ export interface FileRouteTypes {
     | "/_authenticated/settings/api-keys"
     | "/_authenticated/settings/appearance"
     | "/_authenticated/settings/cloudflare"
-    | "/_authenticated/settings/models"
     | "/_authenticated/settings/plugins"
     | "/_authenticated/settings/providers"
     | "/_authenticated/settings/security"
@@ -421,13 +408,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthenticatedSettingsPluginsRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/models": {
-      id: "/_authenticated/settings/models"
-      path: "/models"
-      fullPath: "/settings/models"
-      preLoaderRoute: typeof AuthenticatedSettingsModelsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
     "/_authenticated/settings/cloudflare": {
       id: "/_authenticated/settings/cloudflare"
       path: "/cloudflare"
@@ -516,7 +496,6 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
   AuthenticatedSettingsCloudflareRoute: typeof AuthenticatedSettingsCloudflareRoute
-  AuthenticatedSettingsModelsRoute: typeof AuthenticatedSettingsModelsRoute
   AuthenticatedSettingsPluginsRoute: typeof AuthenticatedSettingsPluginsRoute
   AuthenticatedSettingsProvidersRoute: typeof AuthenticatedSettingsProvidersRouteWithChildren
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
@@ -529,7 +508,6 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
   AuthenticatedSettingsCloudflareRoute: AuthenticatedSettingsCloudflareRoute,
-  AuthenticatedSettingsModelsRoute: AuthenticatedSettingsModelsRoute,
   AuthenticatedSettingsPluginsRoute: AuthenticatedSettingsPluginsRoute,
   AuthenticatedSettingsProvidersRoute:
     AuthenticatedSettingsProvidersRouteWithChildren,
