@@ -25,7 +25,8 @@ function ChatEmptyState() {
 	const [isStarting, setIsStarting] = useState(false);
 	const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>(configs[0]?.id);
 	const { data: modelsData } = useProviderModels(selectedConfigId);
-	const modelOptions = modelsData?.models?.map((m) => ({ value: m, label: m })) ?? [];
+	const modelOptions =
+		modelsData?.models?.filter((m) => m.enabled).map((m) => ({ value: m.id, label: m.name })) ?? [];
 	const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
 
 	const configOptions = configs.map((c) => ({ value: c.id, label: c.name }));

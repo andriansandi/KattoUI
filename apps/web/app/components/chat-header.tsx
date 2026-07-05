@@ -27,7 +27,10 @@ export function ChatHeader({
 	const configOptions =
 		configs.length > 0 ? configs.map((c) => ({ value: c.id, label: c.name })) : [];
 
-	const modelOptions = modelsData?.models?.map((m) => ({ value: m, label: m })) ?? [];
+	const modelOptions =
+		modelsData?.models?.filter((m) => m.enabled).map((m) => ({ value: m.id, label: m.name })) ?? [];
+	// Keep the current model selectable even if it is not in the catalog (e.g.
+	// disabled, or the catalog has not been refreshed yet).
 	const defaultModelOption =
 		model !== undefined && !modelOptions.some((o) => o.value === model)
 			? [{ value: model, label: model }]

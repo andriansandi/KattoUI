@@ -4,6 +4,13 @@ export type ProviderType = "openai" | "anthropic" | "custom";
 /** Provider health states reported by a connection test. */
 export type ProviderStatus = "healthy" | "degraded" | "unhealthy";
 
+/** A model entry in a provider config's catalog. */
+export interface ProviderModelEntry {
+	id: string;
+	name: string;
+	enabled: boolean;
+}
+
 /** A provider configuration stored per user. */
 export interface ProviderConfig {
 	id: string;

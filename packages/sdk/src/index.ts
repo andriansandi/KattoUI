@@ -4,6 +4,7 @@ export * from "./command.js";
 export * from "./feature-flag.js";
 export * from "./keyboard.js";
 export * from "./logger.js";
+export * from "./model-names.js";
 export * from "./plugin.js";
 export * from "./provider.js";
 export * from "./telemetry.js";

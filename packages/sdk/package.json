@@ -16,6 +16,10 @@
 		"./provider": {
 			"types": "./src/provider.ts",
 			"default": "./src/provider.ts"
+		},
+		"./model-names": {
+			"types": "./src/model-names.ts",
+			"default": "./src/model-names.ts"
 		}
 	},
 	"devDependencies": {

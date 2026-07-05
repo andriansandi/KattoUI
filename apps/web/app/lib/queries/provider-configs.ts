@@ -2,6 +2,7 @@ import type {
 	ProviderConfig,
 	ProviderConfigInput,
 	ProviderConfigUpdate,
+	ProviderModelEntry,
 	ProviderStatus,
 	ProviderType,
 } from "@katto/sdk";
@@ -95,8 +96,7 @@ export function useTestSavedProviderConfig() {
 }
 
 interface ProviderModelsResponse {
-	models: string[];
-	error?: string;
+	models: ProviderModelEntry[];
 }
 
 export function useProviderModels(configId: string | undefined) {
@@ -105,5 +105,32 @@ export function useProviderModels(configId: string | undefined) {
 		queryKey: ["provider-models", configId],
 		enabled: configId !== undefined,
 		queryFn: () => authFetch<ProviderModelsResponse>(`/provider-configs/${configId}/models`),
+	});
+}
+
+/** Re-syncs a provider's model catalog from the live provider API. */
+export function useRefreshProviderModels() {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (id: string) =>
+			authFetch<ProviderModelsResponse>(`/provider-configs/${id}/refresh-models`, {
+				method: "POST",
+			}),
+		onSuccess: (_data, id) => qc.invalidateQueries({ queryKey: ["provider-models", id] }),
+	});
+}
+
+/** Toggles enabled state on a provider's catalog models. */
+export function useUpdateProviderModels(configId: string) {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (input: { models: Array<{ id: string; enabled: boolean }> }) =>
+			authFetch<ProviderModelsResponse>(`/provider-configs/${configId}/models`, {
+				method: "PATCH",
+				body: JSON.stringify(input),
+			}),
+		onSuccess: () => qc.invalidateQueries({ queryKey: ["provider-models", configId] }),
 	});
 }

@@ -1,13 +1,20 @@
-import type { ProviderConfig, ProviderStatus, ProviderType } from "@katto/sdk/chat";
-import { and, eq } from "drizzle-orm";
+import type {
+	ProviderConfig,
+	ProviderModelEntry,
+	ProviderStatus,
+	ProviderType,
+} from "@katto/sdk/chat";
+import { getModelDisplayName } from "@katto/sdk/model-names";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb } from "../../db/index.js";
-import { conversations, providerConfigs } from "../../db/schema.js";
+import { conversations, providerConfigs, providerModels } from "../../db/schema.js";
 import { decryptSecret, encryptSecret } from "../lib/crypto.js";
 import {
 	providerConfigCreateSchema,
 	providerConfigTestSchema,
 	providerConfigUpdateSchema,
+	providerModelsUpdateSchema,
 	validateBody,
 } from "../lib/validation.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -147,6 +154,66 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
 		config.statusMessage = row.statusMessage;
 	}
 	return config;
+}
+
+/** Maps a stored provider-model row to the SDK catalog entry shape. */
+function toEntry(row: typeof providerModels.$inferSelect): ProviderModelEntry {
+	return { id: row.modelId, name: row.name, enabled: row.enabled === 1 };
+}
+
+/**
+ * Fetches the live model list from the provider, upserts new models into the
+ * catalog (with friendly display names), persists the health result, and
+ * returns the full catalog. Existing models keep their enabled state; models no
+ * longer returned by the provider are retained (not deleted).
+ */
+async function syncProviderModels(
+	db: ReturnType<typeof createDb>,
+	env: Env,
+	config: typeof providerConfigs.$inferSelect,
+): Promise<ProviderModelEntry[]> {
+	const token = await decryptSecret(config.apiToken, env);
+	const check = await runHealthCheck({
+		type: config.type,
+		baseUrl: config.baseUrl,
+		token,
+	});
+	await persistHealth(db, config.id, config.userId, check);
+
+	const existing = await db
+		.select()
+		.from(providerModels)
+		.where(eq(providerModels.providerConfigId, config.id));
+	const existingIds = new Set(existing.map((m) => m.modelId));
+	const now = Date.now();
+
+	const toInsert = check.models
+		.filter((modelId) => !existingIds.has(modelId))
+		.map((modelId) => ({
+			id: crypto.randomUUID(),
+			providerConfigId: config.id,
+			modelId,
+			name: getModelDisplayName(modelId),
+			enabled: 1,
+			createdAt: now,
+			updatedAt: now,
+		}));
+	// Insert new models. Multi-row VALUES statements exceed D1's per-statement
+	// variable limit for large catalogs, so use single-row inserts grouped into
+	// batches (each statement binds only 7 variables).
+	const INSERT_BATCH = 50;
+	for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
+		const chunk = toInsert.slice(i, i + INSERT_BATCH);
+		const stmts = chunk.map((row) => db.insert(providerModels).values(row));
+		await db.batch(stmts as [(typeof stmts)[number], ...(typeof stmts)[number][]]);
+	}
+
+	const catalog = await db
+		.select()
+		.from(providerModels)
+		.where(eq(providerModels.providerConfigId, config.id))
+		.orderBy(asc(providerModels.name));
+	return catalog.map(toEntry);
 }
 
 app.get("/", async (c) => {
@@ -374,17 +441,77 @@ app.get("/:id/models", async (c) => {
 		return c.json({ error: "Provider config not found" }, 404);
 	}
 
-	const token = await decryptSecret(config.apiToken, c.env);
-	const check = await runHealthCheck({
-		type: config.type,
-		baseUrl: config.baseUrl,
-		token,
-	});
+	const rows = await db
+		.select()
+		.from(providerModels)
+		.where(eq(providerModels.providerConfigId, id))
+		.orderBy(asc(providerModels.name));
 
-	return c.json({
-		models: check.models,
-		...(check.status === "unhealthy" && { error: check.message }),
-	});
+	// Lazy-populate: an empty catalog (never refreshed) is synced from the
+	// provider on first access so the chat selector works without a manual
+	// refresh. Subsequent reads are fast DB lookups.
+	if (rows.length === 0) {
+		const entries = await syncProviderModels(db, c.env, config);
+		return c.json({ models: entries });
+	}
+
+	return c.json({ models: rows.map(toEntry) });
+});
+
+/** Re-syncs the model catalog from the provider and returns the full list. */
+app.post("/:id/refresh-models", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const db = createDb(c.env.DB);
+
+	const [config] = await db
+		.select()
+		.from(providerConfigs)
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)))
+		.limit(1);
+
+	if (!config) {
+		return c.json({ error: "Provider config not found" }, 404);
+	}
+
+	const entries = await syncProviderModels(db, c.env, config);
+	return c.json({ models: entries });
+});
+
+/** Toggles enabled state on catalog models. Default model is set via PATCH /:id. */
+app.patch("/:id/models", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const result = await validateBody(c, providerModelsUpdateSchema);
+	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
+	const data = result.data;
+
+	const db = createDb(c.env.DB);
+
+	const [config] = await db
+		.select()
+		.from(providerConfigs)
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)))
+		.limit(1);
+
+	if (!config) {
+		return c.json({ error: "Provider config not found" }, 404);
+	}
+
+	const now = Date.now();
+	for (const m of data.models) {
+		await db
+			.update(providerModels)
+			.set({ enabled: m.enabled ? 1 : 0, updatedAt: now })
+			.where(and(eq(providerModels.providerConfigId, id), eq(providerModels.modelId, m.id)));
+	}
+
+	const rows = await db
+		.select()
+		.from(providerModels)
+		.where(eq(providerModels.providerConfigId, id))
+		.orderBy(asc(providerModels.name));
+	return c.json({ models: rows.map(toEntry) });
 });
 
 export { app as providerConfigsRoute };
