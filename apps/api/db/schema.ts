@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const providerConfigs = sqliteTable("provider_configs", {
 	id: text("id").primaryKey(),
@@ -10,6 +10,10 @@ export const providerConfigs = sqliteTable("provider_configs", {
 	baseUrl: text("base_url").notNull(),
 	apiToken: text("api_token").notNull(),
 	defaultModel: text("default_model"),
+	status: text("status", { enum: ["healthy", "degraded", "unhealthy"] }),
+	latencyMs: integer("latency_ms"),
+	lastCheckedAt: integer("last_checked_at"),
+	statusMessage: text("status_message"),
 	createdAt: integer("created_at").notNull(),
 	updatedAt: integer("updated_at").notNull(),
 });
@@ -42,4 +46,23 @@ export const messages = sqliteTable(
 		createdAt: integer("created_at").notNull(),
 	},
 	(table) => [index("messages_conversation_id_idx").on(table.conversationId)],
+);
+
+export const providerModels = sqliteTable(
+	"provider_models",
+	{
+		id: text("id").primaryKey(),
+		providerConfigId: text("provider_config_id")
+			.notNull()
+			.references(() => providerConfigs.id, { onDelete: "cascade" }),
+		modelId: text("model_id").notNull(),
+		name: text("name").notNull(),
+		enabled: integer("enabled").notNull().default(1),
+		createdAt: integer("created_at").notNull(),
+		updatedAt: integer("updated_at").notNull(),
+	},
+	(table) => [
+		index("provider_models_config_id_idx").on(table.providerConfigId),
+		uniqueIndex("provider_models_config_model_unique").on(table.providerConfigId, table.modelId),
+	],
 );

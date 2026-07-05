@@ -1,0 +1,11 @@
+# Wrangler reads this file for local `wrangler dev` secrets. Copy to `.dev.vars`
+# and fill in real values. In production, set these with `wrangler secret put`.
+
+ENVIRONMENT=development
+CLERK_SECRET_KEY=sk_test_...
+CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# 32-byte key for encrypting provider API tokens at rest (AES-256-GCM).
+# Generate with: openssl rand -base64 32
+# NEVER commit the real value. Losing it makes stored tokens unrecoverable.
+ENCRYPTION_KEY=

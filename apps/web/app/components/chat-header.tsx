@@ -1,38 +1,63 @@
 import { Menu, MoreHorizontal } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Dropdown } from "~/components/ui/dropdown";
-import { useUpdateConversation } from "~/lib/queries/conversations";
-import { useProviderConfigs, useProviderModels } from "~/lib/queries/provider-configs";
+import type { DropdownGroup } from "~/components/ui/dropdown";
+import { useAllEnabledModels } from "~/lib/queries/provider-configs";
 
 interface ChatHeaderProps {
 	title: string;
-	model?: string | undefined;
-	providerConfigId?: string | undefined;
-	conversationId: string;
+	selectedModel?: string | undefined;
+	selectedProviderConfigId?: string | undefined;
+	onModelChange: (providerConfigId: string, model: string) => void;
 	onToggleMobileSidebar: () => void;
+}
+
+/** Composite key encoding (providerConfigId, modelId) — config ids are UUIDs. */
+function compositeKey(providerConfigId: string, model: string): string {
+	return `${providerConfigId}:${model}`;
+}
+
+function splitComposite(value: string): { providerConfigId: string; model: string } {
+	const sep = value.indexOf(":");
+	return { providerConfigId: value.slice(0, sep), model: value.slice(sep + 1) };
 }
 
 export function ChatHeader({
 	title,
-	model,
-	providerConfigId,
-	conversationId,
+	selectedModel,
+	selectedProviderConfigId,
+	onModelChange,
 	onToggleMobileSidebar,
 }: ChatHeaderProps) {
-	const { data: configsData } = useProviderConfigs();
-	const configs = configsData?.providerConfigs ?? [];
-	const { data: modelsData } = useProviderModels(providerConfigId);
-	const updateConversation = useUpdateConversation();
+	const { data: allModels } = useAllEnabledModels();
 
-	const configOptions =
-		configs.length > 0 ? configs.map((c) => ({ value: c.id, label: c.name })) : [];
+	const groups: DropdownGroup[] = (allModels?.groups ?? []).map((g) => ({
+		label: g.providerName,
+		options: g.models.map((m) => ({
+			value: compositeKey(g.providerConfigId, m.id),
+			label: m.name,
+		})),
+	}));
 
-	const modelOptions = modelsData?.models?.map((m) => ({ value: m, label: m })) ?? [];
-	const defaultModelOption =
-		model !== undefined && !modelOptions.some((o) => o.value === model)
-			? [{ value: model, label: model }]
-			: [];
-	const allModelOptions = [...defaultModelOption, ...modelOptions];
+	const currentValue =
+		selectedProviderConfigId !== undefined && selectedModel !== undefined
+			? compositeKey(selectedProviderConfigId, selectedModel)
+			: undefined;
+
+	// If the saved model is not in any group (disabled, or catalog not synced),
+	// surface it as a fallback so the selector still shows something.
+	const hasCurrent = groups.some((g) => g.options.some((o) => o.value === currentValue));
+	if (!hasCurrent && currentValue !== undefined && selectedModel !== undefined) {
+		groups.unshift({
+			label: "Current",
+			options: [{ value: currentValue, label: selectedModel }],
+		});
+	}
+
+	function handleChange(value: string) {
+		const { providerConfigId, model } = splitComposite(value);
+		onModelChange(providerConfigId, model);
+	}
 
 	return (
 		<div className="flex h-14 flex-shrink-0 items-center gap-2 border-b px-4">
@@ -41,25 +66,15 @@ export function ChatHeader({
 				<span className="sr-only">Toggle sidebar</span>
 			</Button>
 			<h1 className="flex-1 truncate text-sm font-semibold">{title}</h1>
-			{configs.length > 0 ? (
-				<>
-					<Dropdown
-						value={providerConfigId}
-						options={configOptions}
-						placeholder="Provider"
-						onChange={(value) =>
-							updateConversation.mutate({ id: conversationId, providerConfigId: value })
-						}
-					/>
-					<Dropdown
-						value={model}
-						options={allModelOptions}
-						placeholder="Model"
-						onChange={(value) => updateConversation.mutate({ id: conversationId, model: value })}
-					/>
-				</>
+			{groups.length > 0 ? (
+				<Dropdown
+					value={currentValue}
+					groups={groups}
+					placeholder="Model"
+					onChange={handleChange}
+				/>
 			) : (
-				<span className="text-xs font-medium text-muted-foreground">No provider</span>
+				<span className="text-xs font-medium text-muted-foreground">No model</span>
 			)}
 			<Button variant="ghost" size="icon" aria-label="More">
 				<MoreHorizontal className="h-4 w-4" />

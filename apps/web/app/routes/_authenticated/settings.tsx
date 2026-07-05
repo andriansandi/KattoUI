@@ -9,15 +9,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 const settingsPages = [
-	{ to: "/settings/appearance", label: "Appearance" },
-	{ to: "/settings/models", label: "Models" },
 	{ to: "/settings/providers", label: "Providers" },
-	{ to: "/settings/cloudflare", label: "Cloudflare" },
-	{ to: "/settings/workspace", label: "Workspace" },
-	{ to: "/settings/api-keys", label: "API Keys" },
-	{ to: "/settings/security", label: "Security" },
-	{ to: "/settings/plugins", label: "Plugins" },
-	{ to: "/settings/themes", label: "Themes" },
 	{ to: "/settings/about", label: "About" },
 ];
 
@@ -26,42 +18,45 @@ function SettingsLayout() {
 	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
 
 	return (
-		<div className="h-full overflow-y-auto p-6">
-			<div className="mx-auto max-w-5xl space-y-6">
-				<div className="flex items-center gap-3">
-					<Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileSidebar}>
-						<Menu className="h-5 w-5" />
-						<span className="sr-only">Toggle sidebar</span>
-					</Button>
-					<div>
+		<div className="flex h-full flex-col">
+			<div className="flex h-14 flex-shrink-0 items-center gap-2 border-b px-4 md:hidden">
+				<Button variant="ghost" size="icon" onClick={toggleMobileSidebar}>
+					<Menu className="h-5 w-5" />
+					<span className="sr-only">Toggle sidebar</span>
+				</Button>
+				<h1 className="text-sm font-semibold">Settings</h1>
+			</div>
+			<div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+				<div className="space-y-4 md:space-y-6">
+					<div className="hidden md:block">
 						<h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-						<p className="text-muted-foreground">Manage your workspace, models, and preferences.</p>
+						<p className="text-muted-foreground">Manage your providers and preferences.</p>
 					</div>
-				</div>
-				<div className="flex flex-col gap-6 lg:flex-row">
-					<nav className="w-full shrink-0 lg:w-56">
-						<div className="space-y-1">
-							{settingsPages.map((page) => {
-								const active = pathname === page.to;
-								return (
-									<Link
-										key={page.to}
-										to={page.to}
-										className={cn(
-											"block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-											active
-												? "bg-primary/10 text-primary"
-												: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-										)}
-									>
-										{page.label}
-									</Link>
-								);
-							})}
+					<div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+						<nav className="shrink-0 lg:w-56">
+							<div className="flex flex-row gap-1 overflow-x-auto pb-2 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:pb-0">
+								{settingsPages.map((page) => {
+									const active = pathname === page.to || pathname.startsWith(`${page.to}/`);
+									return (
+										<Link
+											key={page.to}
+											to={page.to}
+											className={cn(
+												"whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors lg:py-2",
+												active
+													? "bg-primary/10 text-primary"
+													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+											)}
+										>
+											{page.label}
+										</Link>
+									);
+								})}
+							</div>
+						</nav>
+						<div className="min-w-0 flex-1">
+							<Outlet />
 						</div>
-					</nav>
-					<div className="min-w-0 flex-1">
-						<Outlet />
 					</div>
 				</div>
 			</div>

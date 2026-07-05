@@ -1,11 +1,16 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { AlertCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { ChatHeader } from "~/components/chat-header";
 import { MessageItem } from "~/components/chat-message";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useConversations, useGenerateTitle } from "~/lib/queries/conversations";
+import {
+	useConversations,
+	useGenerateTitle,
+	useUpdateConversation,
+} from "~/lib/queries/conversations";
 import { useMessages } from "~/lib/queries/messages";
 import { useStreamChat } from "~/lib/queries/stream-chat";
 import { useUIStore } from "~/stores/ui-store";
@@ -27,8 +32,24 @@ function ChatConversationPage() {
 	const { data, isLoading, isError, refetch } = useMessages(conversationId);
 	const streamChat = useStreamChat(conversationId);
 	const generateTitle = useGenerateTitle();
+	const updateConversation = useUpdateConversation();
 
 	const [input, setInput] = useState("");
+	const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
+	const [selectedProviderId, setSelectedProviderId] = useState<string | undefined>(undefined);
+
+	useEffect(() => {
+		if (selectedModel === undefined && conversation?.model) {
+			setSelectedModel(conversation.model);
+			setSelectedProviderId(conversation.providerConfigId ?? undefined);
+		}
+	}, [conversation, selectedModel]);
+
+	function handleModelChange(providerConfigId: string, model: string) {
+		setSelectedProviderId(providerConfigId);
+		setSelectedModel(model);
+		updateConversation.mutate({ id: conversationId, providerConfigId, model });
+	}
 
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const messages = data?.messages ?? [];
@@ -58,7 +79,10 @@ function ChatConversationPage() {
 		if (!text.trim() || streamChat.isStreaming) return;
 		const isFirst = messages.length === 0;
 		setInput("");
-		await streamChat.send(text);
+		const opts: { model?: string; providerConfigId?: string } = {};
+		if (selectedModel !== undefined) opts.model = selectedModel;
+		if (selectedProviderId !== undefined) opts.providerConfigId = selectedProviderId;
+		await streamChat.send(text, opts);
 		if (isFirst) generateTitle.mutate(conversationId);
 	}
 
@@ -66,9 +90,9 @@ function ChatConversationPage() {
 		<div className="flex h-full w-full flex-col">
 			<ChatHeader
 				title={conversation?.title ?? "Chat"}
-				model={conversation?.model}
-				providerConfigId={conversation?.providerConfigId}
-				conversationId={conversationId}
+				selectedModel={selectedModel}
+				selectedProviderConfigId={selectedProviderId}
+				onModelChange={handleModelChange}
 				onToggleMobileSidebar={toggleMobileSidebar}
 			/>
 			<div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
@@ -99,8 +123,16 @@ function ChatConversationPage() {
 							<MessageItem role={"assistant"} content={streamChat.streamingContent} streaming />
 						)}
 						{streamChat.error && (
-							<div className="flex justify-center">
-								<p className="text-xs text-destructive">{streamChat.error}</p>
+							<div className="flex justify-center px-4 py-3">
+								<div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 max-w-md">
+									<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+									<div className="min-w-0 flex-1">
+										<p className="text-xs font-medium text-destructive">Request failed</p>
+										<p className="mt-0.5 break-words text-xs text-muted-foreground">
+											{streamChat.error}
+										</p>
+									</div>
+								</div>
 							</div>
 						)}
 					</>

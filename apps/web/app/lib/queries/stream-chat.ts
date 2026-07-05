@@ -15,7 +15,7 @@ function messagesKey(conversationId: string) {
 }
 
 interface UseStreamChatResult {
-	send: (content: string) => Promise<void>;
+	send: (content: string, opts?: { model?: string; providerConfigId?: string }) => Promise<void>;
 	stop: () => void;
 	isStreaming: boolean;
 	streamingContent: string;
@@ -33,7 +33,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 	const abortRef = useRef<AbortController | null>(null);
 
 	const send = useCallback(
-		async (content: string) => {
+		async (content: string, opts?: { model?: string; providerConfigId?: string }) => {
 			if (isStreaming || !content.trim()) return;
 
 			setError(null);
@@ -64,7 +64,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 				const response = await fetch(apiUrl(`/conversations/${conversationId}/messages/stream`), {
 					method: "POST",
 					headers,
-					body: JSON.stringify({ content }),
+					body: JSON.stringify({ content, ...opts }),
 					signal: controller.signal,
 				});
 

@@ -9,6 +9,7 @@ app.get("/", (c) => {
 		service: "katto-api",
 		version: "0.1.0",
 		environment: c.env.ENVIRONMENT,
+		encryptionKeyConfigured: Boolean(c.env.ENCRYPTION_KEY),
 		timestamp: new Date().toISOString(),
 	});
 });

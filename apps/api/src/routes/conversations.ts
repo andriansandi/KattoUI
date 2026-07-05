@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
 import { conversations, messages } from "../../db/schema.js";
+import { decryptSecret } from "../lib/crypto.js";
 import { completeChat, completeChatStream } from "../lib/provider-complete.js";
 import { resolveProviderConfig } from "../lib/provider-resolve.js";
 import {
@@ -405,7 +406,7 @@ app.post("/:id/generate-title", async (c) => {
 		const raw = await completeChat({
 			type: config.type,
 			baseUrl: config.baseUrl,
-			apiToken: config.apiToken,
+			apiToken: await decryptSecret(config.apiToken, c.env),
 			model,
 			systemPrompt:
 				"Generate a concise title (at most 6 words) for this conversation. Reply with the title only — no quotes, no trailing punctuation.",
@@ -437,7 +438,7 @@ app.post("/:id/messages/stream", async (c) => {
 	const id = c.req.param("id");
 	const result = await validateBody(c, streamMessageSchema);
 	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
-	const { content } = result.data;
+	const { content, model: reqModel, providerConfigId: reqProviderConfigId } = result.data;
 
 	const db = createDb(c.env.DB);
 
@@ -451,7 +452,11 @@ app.post("/:id/messages/stream", async (c) => {
 		return c.json({ error: "Conversation not found" }, 404);
 	}
 
-	const resolved = await resolveProviderConfig(db, userId, conv);
+	const resolved = await resolveProviderConfig(db, userId, {
+		...conv,
+		model: reqModel ?? conv.model,
+		providerConfigId: reqProviderConfigId ?? conv.providerConfigId,
+	});
 	if (!resolved) {
 		return c.json({ error: "No provider configured" }, 400);
 	}
@@ -520,7 +525,7 @@ app.post("/:id/messages/stream", async (c) => {
 			for await (const chunk of completeChatStream({
 				type: config.type,
 				baseUrl: config.baseUrl,
-				apiToken: config.apiToken,
+				apiToken: await decryptSecret(config.apiToken, c.env),
 				model,
 				messages: chatMessages,
 				signal: upstreamController.signal,
@@ -546,11 +551,12 @@ app.post("/:id/messages/stream", async (c) => {
 					break;
 				}
 			}
-		} catch {
+		} catch (err) {
 			if (accumulated.length === 0) {
+				const message = err instanceof Error ? err.message : "Provider request failed";
 				const errorEvent: StreamChatEvent = {
 					type: "error",
-					message: "Provider request failed",
+					message,
 				};
 				await stream.writeSSE({ data: JSON.stringify(errorEvent) });
 				return;

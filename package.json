@@ -18,7 +18,8 @@
 		"format": "biome format --write .",
 		"typecheck": "pnpm -r typecheck",
 		"test": "vitest",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"migrate:encrypt-keys": "node scripts/migrate-encrypt-keys.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",

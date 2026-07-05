@@ -18,18 +18,20 @@ import { Route as AuthenticatedPromptsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPluginsRouteImport } from './routes/_authenticated/plugins'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedSettingsWorkspaceRouteImport } from './routes/_authenticated/settings/workspace'
 import { Route as AuthenticatedSettingsThemesRouteImport } from './routes/_authenticated/settings/themes'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
 import { Route as AuthenticatedSettingsProvidersRouteImport } from './routes/_authenticated/settings/providers'
 import { Route as AuthenticatedSettingsPluginsRouteImport } from './routes/_authenticated/settings/plugins'
-import { Route as AuthenticatedSettingsModelsRouteImport } from './routes/_authenticated/settings/models'
 import { Route as AuthenticatedSettingsCloudflareRouteImport } from './routes/_authenticated/settings/cloudflare'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
 import { Route as AuthenticatedSettingsAboutRouteImport } from './routes/_authenticated/settings/about'
 import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_authenticated/chat.$conversationId'
+import { Route as AuthenticatedSettingsProvidersIndexRouteImport } from './routes/_authenticated/settings/providers/index'
+import { Route as AuthenticatedSettingsProvidersIdRouteImport } from './routes/_authenticated/settings/providers/$id'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -75,6 +77,12 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -110,12 +118,6 @@ const AuthenticatedSettingsPluginsRoute =
     path: '/plugins',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedSettingsModelsRoute =
-  AuthenticatedSettingsModelsRouteImport.update({
-    id: '/models',
-    path: '/models',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
 const AuthenticatedSettingsCloudflareRoute =
   AuthenticatedSettingsCloudflareRouteImport.update({
     id: '/cloudflare',
@@ -146,6 +148,18 @@ const AuthenticatedChatConversationIdRoute =
     path: '/$conversationId',
     getParentRoute: () => AuthenticatedChatRoute,
   } as any)
+const AuthenticatedSettingsProvidersIndexRoute =
+  AuthenticatedSettingsProvidersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsProvidersRoute,
+  } as any)
+const AuthenticatedSettingsProvidersIdRoute =
+  AuthenticatedSettingsProvidersIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedSettingsProvidersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,13 +175,15 @@ export interface FileRoutesByFullPath {
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
-  '/settings/models': typeof AuthenticatedSettingsModelsRoute
   '/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
-  '/settings/providers': typeof AuthenticatedSettingsProvidersRoute
+  '/settings/providers': typeof AuthenticatedSettingsProvidersRouteWithChildren
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -176,19 +192,19 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/plugins': typeof AuthenticatedPluginsRoute
   '/prompts': typeof AuthenticatedPromptsRoute
-  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/settings/about': typeof AuthenticatedSettingsAboutRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
-  '/settings/models': typeof AuthenticatedSettingsModelsRoute
   '/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
-  '/settings/providers': typeof AuthenticatedSettingsProvidersRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/settings/providers': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -206,13 +222,15 @@ export interface FileRoutesById {
   '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
-  '/_authenticated/settings/models': typeof AuthenticatedSettingsModelsRoute
   '/_authenticated/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
-  '/_authenticated/settings/providers': typeof AuthenticatedSettingsProvidersRoute
+  '/_authenticated/settings/providers': typeof AuthenticatedSettingsProvidersRouteWithChildren
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/_authenticated/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/_authenticated/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/_authenticated/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,13 +248,15 @@ export interface FileRouteTypes {
     | '/settings/api-keys'
     | '/settings/appearance'
     | '/settings/cloudflare'
-    | '/settings/models'
     | '/settings/plugins'
     | '/settings/providers'
     | '/settings/security'
     | '/settings/themes'
     | '/settings/workspace'
     | '/chat/'
+    | '/settings/'
+    | '/settings/providers/$id'
+    | '/settings/providers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -245,19 +265,19 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/plugins'
     | '/prompts'
-    | '/settings'
     | '/chat/$conversationId'
     | '/settings/about'
     | '/settings/api-keys'
     | '/settings/appearance'
     | '/settings/cloudflare'
-    | '/settings/models'
     | '/settings/plugins'
-    | '/settings/providers'
     | '/settings/security'
     | '/settings/themes'
     | '/settings/workspace'
     | '/chat'
+    | '/settings'
+    | '/settings/providers/$id'
+    | '/settings/providers'
   id:
     | '__root__'
     | '/'
@@ -274,13 +294,15 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/api-keys'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/cloudflare'
-    | '/_authenticated/settings/models'
     | '/_authenticated/settings/plugins'
     | '/_authenticated/settings/providers'
     | '/_authenticated/settings/security'
     | '/_authenticated/settings/themes'
     | '/_authenticated/settings/workspace'
     | '/_authenticated/chat/'
+    | '/_authenticated/settings/'
+    | '/_authenticated/settings/providers/$id'
+    | '/_authenticated/settings/providers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -355,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/chat/': {
       id: '/_authenticated/chat/'
       path: '/'
@@ -397,13 +426,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsPluginsRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/_authenticated/settings/models': {
-      id: '/_authenticated/settings/models'
-      path: '/models'
-      fullPath: '/settings/models'
-      preLoaderRoute: typeof AuthenticatedSettingsModelsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
     '/_authenticated/settings/cloudflare': {
       id: '/_authenticated/settings/cloudflare'
       path: '/cloudflare'
@@ -439,6 +461,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatConversationIdRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
+    '/_authenticated/settings/providers/': {
+      id: '/_authenticated/settings/providers/'
+      path: '/'
+      fullPath: '/settings/providers/'
+      preLoaderRoute: typeof AuthenticatedSettingsProvidersIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsProvidersRoute
+    }
+    '/_authenticated/settings/providers/$id': {
+      id: '/_authenticated/settings/providers/$id'
+      path: '/$id'
+      fullPath: '/settings/providers/$id'
+      preLoaderRoute: typeof AuthenticatedSettingsProvidersIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsProvidersRoute
+    }
   }
 }
 
@@ -455,17 +491,35 @@ const AuthenticatedChatRouteChildren: AuthenticatedChatRouteChildren = {
 const AuthenticatedChatRouteWithChildren =
   AuthenticatedChatRoute._addFileChildren(AuthenticatedChatRouteChildren)
 
+interface AuthenticatedSettingsProvidersRouteChildren {
+  AuthenticatedSettingsProvidersIdRoute: typeof AuthenticatedSettingsProvidersIdRoute
+  AuthenticatedSettingsProvidersIndexRoute: typeof AuthenticatedSettingsProvidersIndexRoute
+}
+
+const AuthenticatedSettingsProvidersRouteChildren: AuthenticatedSettingsProvidersRouteChildren =
+  {
+    AuthenticatedSettingsProvidersIdRoute:
+      AuthenticatedSettingsProvidersIdRoute,
+    AuthenticatedSettingsProvidersIndexRoute:
+      AuthenticatedSettingsProvidersIndexRoute,
+  }
+
+const AuthenticatedSettingsProvidersRouteWithChildren =
+  AuthenticatedSettingsProvidersRoute._addFileChildren(
+    AuthenticatedSettingsProvidersRouteChildren,
+  )
+
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsAboutRoute: typeof AuthenticatedSettingsAboutRoute
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
   AuthenticatedSettingsCloudflareRoute: typeof AuthenticatedSettingsCloudflareRoute
-  AuthenticatedSettingsModelsRoute: typeof AuthenticatedSettingsModelsRoute
   AuthenticatedSettingsPluginsRoute: typeof AuthenticatedSettingsPluginsRoute
-  AuthenticatedSettingsProvidersRoute: typeof AuthenticatedSettingsProvidersRoute
+  AuthenticatedSettingsProvidersRoute: typeof AuthenticatedSettingsProvidersRouteWithChildren
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
   AuthenticatedSettingsThemesRoute: typeof AuthenticatedSettingsThemesRoute
   AuthenticatedSettingsWorkspaceRoute: typeof AuthenticatedSettingsWorkspaceRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
@@ -473,12 +527,13 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
   AuthenticatedSettingsCloudflareRoute: AuthenticatedSettingsCloudflareRoute,
-  AuthenticatedSettingsModelsRoute: AuthenticatedSettingsModelsRoute,
   AuthenticatedSettingsPluginsRoute: AuthenticatedSettingsPluginsRoute,
-  AuthenticatedSettingsProvidersRoute: AuthenticatedSettingsProvidersRoute,
+  AuthenticatedSettingsProvidersRoute:
+    AuthenticatedSettingsProvidersRouteWithChildren,
   AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
   AuthenticatedSettingsThemesRoute: AuthenticatedSettingsThemesRoute,
   AuthenticatedSettingsWorkspaceRoute: AuthenticatedSettingsWorkspaceRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }
 
 const AuthenticatedSettingsRouteWithChildren =

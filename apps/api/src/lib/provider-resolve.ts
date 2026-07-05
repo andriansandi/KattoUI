@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "../../db/index.js";
 import { providerConfigs } from "../../db/schema.js";
 import type { conversations, providerConfigs as providerConfigsType } from "../../db/schema.js";
@@ -26,7 +26,7 @@ export async function resolveProviderConfig(
 		const [pc] = await db
 			.select()
 			.from(providerConfigs)
-			.where(eq(providerConfigs.id, conv.providerConfigId))
+			.where(and(eq(providerConfigs.id, conv.providerConfigId), eq(providerConfigs.userId, userId)))
 			.limit(1);
 		config = pc ?? null;
 	} else {

@@ -1,6 +1,23 @@
 /** Supported provider types. */
 export type ProviderType = "openai" | "anthropic" | "custom";
 
+/** Provider health states reported by a connection test. */
+export type ProviderStatus = "healthy" | "degraded" | "unhealthy";
+
+/** A model entry in a provider config's catalog. */
+export interface ProviderModelEntry {
+	id: string;
+	name: string;
+	enabled: boolean;
+}
+
+/** Enabled models grouped by provider config, for the chat model selector. */
+export interface ProviderModelGroup {
+	providerConfigId: string;
+	providerName: string;
+	models: Array<{ id: string; name: string }>;
+}
+
 /** A provider configuration stored per user. */
 export interface ProviderConfig {
 	id: string;
@@ -10,6 +27,11 @@ export interface ProviderConfig {
 	baseUrl: string;
 	defaultModel?: string;
 	isConfigured: boolean;
+	/** Last connection-test result. Absent when the provider has never been tested. */
+	status?: ProviderStatus;
+	latencyMs?: number;
+	lastCheckedAt?: number;
+	statusMessage?: string;
 	createdAt: number;
 	updatedAt: number;
 }
