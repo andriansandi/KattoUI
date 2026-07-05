@@ -2,6 +2,7 @@ import type {
 	ProviderConfig,
 	ProviderConfigInput,
 	ProviderConfigUpdate,
+	ProviderStatus,
 	ProviderType,
 } from "@katto/sdk";
 import { useForm } from "@tanstack/react-form";
@@ -32,6 +33,7 @@ import {
 	useDeleteProviderConfig,
 	useProviderConfigs,
 	useTestProviderConfig,
+	useTestSavedProviderConfig,
 	useUpdateProviderConfig,
 } from "~/lib/queries/provider-configs";
 
@@ -61,6 +63,44 @@ const PROVIDER_META: Record<
 	},
 };
 
+function statusLabel(status: ProviderStatus | undefined): string {
+	switch (status) {
+		case "healthy":
+			return "Connected";
+		case "degraded":
+			return "Degraded";
+		case "unhealthy":
+			return "Error";
+		default:
+			return "Not tested";
+	}
+}
+
+function statusDotClass(status: ProviderStatus | undefined): string {
+	switch (status) {
+		case "healthy":
+			return "bg-emerald-500";
+		case "degraded":
+			return "bg-amber-500";
+		case "unhealthy":
+			return "bg-red-500";
+		default:
+			return "bg-muted-foreground/40";
+	}
+}
+
+function formatRelativeTime(ts: number): string {
+	const diff = Date.now() - ts;
+	const seconds = Math.floor(diff / 1000);
+	if (seconds < 60) return "just now";
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
 function ProvidersSettingsPage() {
 	return (
 		<ClientOnly
@@ -89,9 +129,11 @@ function ProvidersSettingsPage() {
 function ProvidersContent() {
 	const query = useProviderConfigs();
 	const deleteMutation = useDeleteProviderConfig();
+	const testSavedMutation = useTestSavedProviderConfig();
 	const [formOpen, setFormOpen] = useState(false);
 	const [editing, setEditing] = useState<ProviderConfig | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+	const [testingId, setTestingId] = useState<string | null>(null);
 
 	const openAdd = () => {
 		setEditing(null);
@@ -104,6 +146,10 @@ function ProvidersContent() {
 	const closeForm = () => {
 		setFormOpen(false);
 		setEditing(null);
+	};
+	const handleTest = (id: string) => {
+		setTestingId(id);
+		testSavedMutation.mutate(id, { onSettled: () => setTestingId(null) });
 	};
 
 	const configs = query.data?.providerConfigs ?? [];
@@ -151,59 +197,91 @@ function ProvidersContent() {
 				<div className="space-y-3">
 					{configs.map((config) => {
 						const isConfirming = confirmDelete === config.id;
+						const isTesting = testingId === config.id;
 						return (
-							<div
-								key={config.id}
-								className="flex items-center justify-between rounded-lg border p-4"
-							>
-								<div className="min-w-0">
-									<div className="flex items-center gap-2">
-										<p className="truncate font-medium">{config.name}</p>
-										<Badge variant="secondary">{PROVIDER_META[config.type].label}</Badge>
-										<Badge variant={config.isConfigured ? "default" : "outline"}>
-											{config.isConfigured ? "Configured" : "No token"}
-										</Badge>
-									</div>
-									<p className="truncate text-sm text-muted-foreground">{config.baseUrl}</p>
-									{config.defaultModel && (
-										<p className="text-xs text-muted-foreground">Model: {config.defaultModel}</p>
-									)}
-								</div>
-								<div className="flex shrink-0 items-center gap-2">
-									{isConfirming ? (
-										<>
-											<Button
-												size="sm"
-												variant="destructive"
-												disabled={deleteMutation.isPending}
-												onClick={() => {
-													deleteMutation.mutate(config.id, {
-														onSuccess: () => setConfirmDelete(null),
-													});
-												}}
-											>
-												{deleteMutation.isPending ? (
-													<Loader2 className="h-4 w-4 animate-spin" />
-												) : (
-													<Check className="h-4 w-4" />
+							<div key={config.id} className="rounded-lg border p-4">
+								<div className="flex items-start justify-between gap-3">
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<span
+												className={cn(
+													"h-2 w-2 shrink-0 rounded-full",
+													statusDotClass(config.status),
 												)}
-												Confirm
-											</Button>
-											<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
-												Cancel
-											</Button>
-										</>
-									) : (
-										<>
-											<Button size="sm" variant="outline" onClick={() => openEdit(config)}>
-												<Pencil className="h-4 w-4" />
-												Edit
-											</Button>
-											<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(config.id)}>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										</>
-									)}
+												title={statusLabel(config.status)}
+											/>
+											<p className="truncate font-medium">{config.name}</p>
+											<Badge variant="secondary">{PROVIDER_META[config.type].label}</Badge>
+										</div>
+										<p className="mt-1 truncate text-sm text-muted-foreground">{config.baseUrl}</p>
+										<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+											<span>{statusLabel(config.status)}</span>
+											{config.latencyMs !== undefined && config.lastCheckedAt !== undefined && (
+												<span>
+													{config.latencyMs}ms · {formatRelativeTime(config.lastCheckedAt)}
+												</span>
+											)}
+											{config.defaultModel && <span>Default: {config.defaultModel}</span>}
+										</div>
+										{config.statusMessage && config.status !== "healthy" && (
+											<p className="mt-1 truncate text-xs text-destructive">
+												{config.statusMessage}
+											</p>
+										)}
+									</div>
+									<div className="flex shrink-0 items-center gap-2">
+										{isConfirming ? (
+											<>
+												<Button
+													size="sm"
+													variant="destructive"
+													disabled={deleteMutation.isPending}
+													onClick={() => {
+														deleteMutation.mutate(config.id, {
+															onSuccess: () => setConfirmDelete(null),
+														});
+													}}
+												>
+													{deleteMutation.isPending ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<Check className="h-4 w-4" />
+													)}
+													Confirm
+												</Button>
+												<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
+													Cancel
+												</Button>
+											</>
+										) : (
+											<>
+												<Button
+													size="sm"
+													variant="outline"
+													disabled={isTesting}
+													onClick={() => handleTest(config.id)}
+												>
+													{isTesting ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<Plug className="h-4 w-4" />
+													)}
+													Test
+												</Button>
+												<Button size="sm" variant="outline" onClick={() => openEdit(config)}>
+													<Pencil className="h-4 w-4" />
+													Edit
+												</Button>
+												<Button
+													size="sm"
+													variant="ghost"
+													onClick={() => setConfirmDelete(config.id)}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</>
+										)}
+									</div>
 								</div>
 							</div>
 						);
@@ -477,9 +555,12 @@ function ProviderConfigForm({
 				{testMutation.data && (
 					<div className="rounded-md border p-3 text-sm">
 						{testMutation.data.ok ? (
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<Check className="h-4 w-4 text-emerald-600" />
-								<span className="font-medium">Connected successfully</span>
+								<span className="font-medium">Connected</span>
+								{testMutation.data.latencyMs !== undefined && (
+									<span className="text-muted-foreground">{testMutation.data.latencyMs}ms</span>
+								)}
 								{testMutation.data.models && testMutation.data.models.length > 0 && (
 									<span className="text-muted-foreground">
 										({testMutation.data.models.length} models)

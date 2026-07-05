@@ -1,4 +1,4 @@
-import type { ProviderConfig, ProviderType } from "@katto/sdk/chat";
+import type { ProviderConfig, ProviderStatus, ProviderType } from "@katto/sdk/chat";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb } from "../../db/index.js";
@@ -42,6 +42,83 @@ const PROVIDER_SPECS: Record<ProviderType, ProviderSpec> = {
 	},
 };
 
+const HEALTH_CHECK_TIMEOUT_MS = 8000;
+const DEGRADED_LATENCY_THRESHOLD_MS = 3000;
+
+interface HealthCheckResult {
+	status: ProviderStatus;
+	latencyMs: number;
+	message: string;
+	models: string[];
+}
+
+/**
+ * Fetches the provider's `/models` endpoint with a timeout and classifies the
+ * result. `healthy` = responded 2xx quickly; `degraded` = responded 2xx but
+ * slowly; `unhealthy` = non-2xx, timeout, or network error. Shared by the
+ * pre-save test, the saved-config test, and background post-save validation.
+ */
+async function runHealthCheck(args: {
+	type: ProviderType;
+	baseUrl: string;
+	token: string;
+}): Promise<HealthCheckResult> {
+	const spec = PROVIDER_SPECS[args.type];
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+	const start = Date.now();
+	try {
+		const response = await fetch(`${args.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
+			headers: spec.buildHeaders(args.token),
+			signal: controller.signal,
+		});
+		const latencyMs = Date.now() - start;
+		if (!response.ok) {
+			return {
+				status: "unhealthy",
+				latencyMs,
+				message: `Responded ${response.status} ${response.statusText}`,
+				models: [],
+			};
+		}
+		const json = (await response.json()) as { data?: Array<{ id?: string }> };
+		const models = Array.isArray(json.data)
+			? json.data.map((m) => m?.id).filter((m): m is string => typeof m === "string")
+			: [];
+		return {
+			status: latencyMs >= DEGRADED_LATENCY_THRESHOLD_MS ? "degraded" : "healthy",
+			latencyMs,
+			message: "OK",
+			models,
+		};
+	} catch (error) {
+		const latencyMs = Date.now() - start;
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return { status: "unhealthy", latencyMs, message, models: [] };
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/** Persists a health-check result onto a provider config row. */
+async function persistHealth(
+	db: ReturnType<typeof createDb>,
+	id: string,
+	userId: string,
+	result: HealthCheckResult,
+): Promise<void> {
+	await db
+		.update(providerConfigs)
+		.set({
+			status: result.status,
+			latencyMs: result.latencyMs,
+			lastCheckedAt: Date.now(),
+			statusMessage: result.message,
+			updatedAt: Date.now(),
+		})
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)));
+}
+
 /** Maps a stored row to the masked SDK shape — `apiToken` is never exposed. */
 function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderConfig {
 	const config: ProviderConfig = {
@@ -56,6 +133,18 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
 	};
 	if (row.defaultModel !== null) {
 		config.defaultModel = row.defaultModel;
+	}
+	if (row.status !== null) {
+		config.status = row.status;
+	}
+	if (row.latencyMs !== null) {
+		config.latencyMs = row.latencyMs;
+	}
+	if (row.lastCheckedAt !== null) {
+		config.lastCheckedAt = row.lastCheckedAt;
+	}
+	if (row.statusMessage !== null) {
+		config.statusMessage = row.statusMessage;
 	}
 	return config;
 }
@@ -96,6 +185,20 @@ app.post("/", async (c) => {
 	if (!created) {
 		return c.json({ error: "Failed to create provider config" }, 500);
 	}
+
+	// Best-effort background health validation — does not block the response.
+	const plainToken = data.apiToken ?? "";
+	c.executionCtx.waitUntil(
+		(async () => {
+			const bgDb = createDb(c.env.DB);
+			const result = await runHealthCheck({
+				type: created.type,
+				baseUrl: created.baseUrl,
+				token: plainToken,
+			});
+			await persistHealth(bgDb, created.id, userId, result);
+		})(),
+	);
 
 	return c.json(toProviderConfig(created), 201);
 });
@@ -147,6 +250,28 @@ app.patch("/:id", async (c) => {
 		return c.json({ error: "Failed to update provider config" }, 500);
 	}
 
+	// Background health validation only when connection-affecting fields
+	// changed (type/baseUrl/apiToken). Name/defaultModel edits skip it.
+	const connectionChanged =
+		data.type !== undefined || data.baseUrl !== undefined || encryptedToken !== undefined;
+	if (connectionChanged) {
+		c.executionCtx.waitUntil(
+			(async () => {
+				const bgDb = createDb(c.env.DB);
+				const token =
+					encryptedToken !== undefined
+						? (data.apiToken as string)
+						: await decryptSecret(existing.apiToken, c.env);
+				const result = await runHealthCheck({
+					type: updated.type,
+					baseUrl: updated.baseUrl,
+					token,
+				});
+				await persistHealth(bgDb, id, userId, result);
+			})(),
+		);
+	}
+
 	return c.json(toProviderConfig(updated), 200);
 });
 
@@ -184,36 +309,54 @@ app.post("/test", async (c) => {
 	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
 	const data = result.data;
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), 8000);
-	const token = data.apiToken ?? "";
-	const spec = PROVIDER_SPECS[data.type];
+	const check = await runHealthCheck({
+		type: data.type,
+		baseUrl: data.baseUrl,
+		token: data.apiToken ?? "",
+	});
 
-	try {
-		const response = await fetch(`${data.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
-			headers: spec.buildHeaders(token),
-			signal: controller.signal,
-		});
+	return c.json({
+		ok: check.status !== "unhealthy",
+		status: check.status,
+		latencyMs: check.latencyMs,
+		message: check.message,
+		models: check.models,
+		...(check.status === "unhealthy" && { error: check.message }),
+	});
+});
 
-		if (!response.ok) {
-			return c.json({
-				ok: false,
-				error: `Provider responded ${response.status} ${response.statusText}`,
-			});
-		}
+/** Tests a saved provider config and persists the health result onto the row. */
+app.post("/:id/test", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const db = createDb(c.env.DB);
 
-		const json = (await response.json()) as { data?: Array<{ id?: string }> };
-		const models = Array.isArray(json.data)
-			? json.data.map((m) => m?.id).filter((id): id is string => typeof id === "string")
-			: [];
+	const [config] = await db
+		.select()
+		.from(providerConfigs)
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)))
+		.limit(1);
 
-		return c.json({ ok: true, models });
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ ok: false, error: message });
-	} finally {
-		clearTimeout(timer);
+	if (!config) {
+		return c.json({ error: "Provider config not found" }, 404);
 	}
+
+	const token = await decryptSecret(config.apiToken, c.env);
+	const check = await runHealthCheck({
+		type: config.type,
+		baseUrl: config.baseUrl,
+		token,
+	});
+	await persistHealth(db, id, userId, check);
+
+	return c.json({
+		ok: check.status !== "unhealthy",
+		status: check.status,
+		latencyMs: check.latencyMs,
+		message: check.message,
+		models: check.models,
+		...(check.status === "unhealthy" && { error: check.message }),
+	});
 });
 
 app.get("/:id/models", async (c) => {
@@ -231,38 +374,17 @@ app.get("/:id/models", async (c) => {
 		return c.json({ error: "Provider config not found" }, 404);
 	}
 
-	const spec = PROVIDER_SPECS[config.type];
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), 8000);
+	const token = await decryptSecret(config.apiToken, c.env);
+	const check = await runHealthCheck({
+		type: config.type,
+		baseUrl: config.baseUrl,
+		token,
+	});
 
-	try {
-		const token = await decryptSecret(config.apiToken, c.env);
-		const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
-			headers: spec.buildHeaders(token),
-			signal: controller.signal,
-		});
-
-		if (!response.ok) {
-			return c.json({
-				models: [],
-				error: `Provider responded ${response.status} ${response.statusText}`,
-			});
-		}
-
-		const json = (await response.json()) as { data?: Array<{ id?: string }> };
-		const models = Array.isArray(json.data)
-			? json.data
-					.map((m) => m?.id)
-					.filter((modelId): modelId is string => typeof modelId === "string")
-			: [];
-
-		return c.json({ models });
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ models: [], error: message });
-	} finally {
-		clearTimeout(timer);
-	}
+	return c.json({
+		models: check.models,
+		...(check.status === "unhealthy" && { error: check.message }),
+	});
 });
 
 export { app as providerConfigsRoute };

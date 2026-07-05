@@ -10,6 +10,10 @@ export const providerConfigs = sqliteTable("provider_configs", {
 	baseUrl: text("base_url").notNull(),
 	apiToken: text("api_token").notNull(),
 	defaultModel: text("default_model"),
+	status: text("status", { enum: ["healthy", "degraded", "unhealthy"] }),
+	latencyMs: integer("latency_ms"),
+	lastCheckedAt: integer("last_checked_at"),
+	statusMessage: text("status_message"),
 	createdAt: integer("created_at").notNull(),
 	updatedAt: integer("updated_at").notNull(),
 });

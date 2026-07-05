@@ -2,6 +2,7 @@ import type {
 	ProviderConfig,
 	ProviderConfigInput,
 	ProviderConfigUpdate,
+	ProviderStatus,
 	ProviderType,
 } from "@katto/sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +17,9 @@ interface ProviderConfigsResponse {
 
 export interface TestConnectionResult {
 	ok: boolean;
+	status?: ProviderStatus;
+	latencyMs?: number;
+	message?: string;
 	models?: string[];
 	error?: string;
 }
@@ -76,6 +80,17 @@ export function useTestProviderConfig() {
 				method: "POST",
 				body: JSON.stringify(input),
 			}),
+	});
+}
+
+/** Tests a saved provider config and persists the health result server-side. */
+export function useTestSavedProviderConfig() {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (id: string) =>
+			authFetch<TestConnectionResult>(`/provider-configs/${id}/test`, { method: "POST" }),
+		onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
 	});
 }
 
