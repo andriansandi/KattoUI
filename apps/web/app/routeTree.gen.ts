@@ -8,290 +8,290 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root"
-import { Route as SignUpRouteImport } from "./routes/sign-up"
-import { Route as SignInRouteImport } from "./routes/sign-in"
-import { Route as AuthenticatedRouteImport } from "./routes/_authenticated"
-import { Route as IndexRouteImport } from "./routes/index"
-import { Route as AuthenticatedSettingsRouteImport } from "./routes/_authenticated/settings"
-import { Route as AuthenticatedPromptsRouteImport } from "./routes/_authenticated/prompts"
-import { Route as AuthenticatedPluginsRouteImport } from "./routes/_authenticated/plugins"
-import { Route as AuthenticatedDashboardRouteImport } from "./routes/_authenticated/dashboard"
-import { Route as AuthenticatedChatRouteImport } from "./routes/_authenticated/chat"
-import { Route as AuthenticatedChatIndexRouteImport } from "./routes/_authenticated/chat.index"
-import { Route as AuthenticatedSettingsWorkspaceRouteImport } from "./routes/_authenticated/settings/workspace"
-import { Route as AuthenticatedSettingsThemesRouteImport } from "./routes/_authenticated/settings/themes"
-import { Route as AuthenticatedSettingsSecurityRouteImport } from "./routes/_authenticated/settings/security"
-import { Route as AuthenticatedSettingsProvidersRouteImport } from "./routes/_authenticated/settings/providers"
-import { Route as AuthenticatedSettingsPluginsRouteImport } from "./routes/_authenticated/settings/plugins"
-import { Route as AuthenticatedSettingsCloudflareRouteImport } from "./routes/_authenticated/settings/cloudflare"
-import { Route as AuthenticatedSettingsAppearanceRouteImport } from "./routes/_authenticated/settings/appearance"
-import { Route as AuthenticatedSettingsApiKeysRouteImport } from "./routes/_authenticated/settings/api-keys"
-import { Route as AuthenticatedSettingsAboutRouteImport } from "./routes/_authenticated/settings/about"
-import { Route as AuthenticatedChatConversationIdRouteImport } from "./routes/_authenticated/chat.$conversationId"
-import { Route as AuthenticatedSettingsProvidersIndexRouteImport } from "./routes/_authenticated/settings/providers/index"
-import { Route as AuthenticatedSettingsProvidersIdRouteImport } from "./routes/_authenticated/settings/providers/$id"
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedPromptsRouteImport } from './routes/_authenticated/prompts'
+import { Route as AuthenticatedPluginsRouteImport } from './routes/_authenticated/plugins'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
+import { Route as AuthenticatedSettingsWorkspaceRouteImport } from './routes/_authenticated/settings/workspace'
+import { Route as AuthenticatedSettingsThemesRouteImport } from './routes/_authenticated/settings/themes'
+import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
+import { Route as AuthenticatedSettingsProvidersRouteImport } from './routes/_authenticated/settings/providers'
+import { Route as AuthenticatedSettingsPluginsRouteImport } from './routes/_authenticated/settings/plugins'
+import { Route as AuthenticatedSettingsCloudflareRouteImport } from './routes/_authenticated/settings/cloudflare'
+import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
+import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
+import { Route as AuthenticatedSettingsAboutRouteImport } from './routes/_authenticated/settings/about'
+import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_authenticated/chat.$conversationId'
+import { Route as AuthenticatedSettingsProvidersIndexRouteImport } from './routes/_authenticated/settings/providers/index'
+import { Route as AuthenticatedSettingsProvidersIdRouteImport } from './routes/_authenticated/settings/providers/$id'
 
 const SignUpRoute = SignUpRouteImport.update({
-  id: "/sign-up",
-  path: "/sign-up",
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
-  id: "/sign-in",
-  path: "/sign-in",
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: "/_authenticated",
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedPromptsRoute = AuthenticatedPromptsRouteImport.update({
-  id: "/prompts",
-  path: "/prompts",
+  id: '/prompts',
+  path: '/prompts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedPluginsRoute = AuthenticatedPluginsRouteImport.update({
-  id: "/plugins",
-  path: "/plugins",
+  id: '/plugins',
+  path: '/plugins',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: "/dashboard",
-  path: "/dashboard",
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
-  id: "/chat",
-  path: "/chat",
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AuthenticatedChatRoute,
 } as any)
 const AuthenticatedSettingsWorkspaceRoute =
   AuthenticatedSettingsWorkspaceRouteImport.update({
-    id: "/workspace",
-    path: "/workspace",
+    id: '/workspace',
+    path: '/workspace',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsThemesRoute =
   AuthenticatedSettingsThemesRouteImport.update({
-    id: "/themes",
-    path: "/themes",
+    id: '/themes',
+    path: '/themes',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsSecurityRoute =
   AuthenticatedSettingsSecurityRouteImport.update({
-    id: "/security",
-    path: "/security",
+    id: '/security',
+    path: '/security',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsProvidersRoute =
   AuthenticatedSettingsProvidersRouteImport.update({
-    id: "/providers",
-    path: "/providers",
+    id: '/providers',
+    path: '/providers',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsPluginsRoute =
   AuthenticatedSettingsPluginsRouteImport.update({
-    id: "/plugins",
-    path: "/plugins",
+    id: '/plugins',
+    path: '/plugins',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsCloudflareRoute =
   AuthenticatedSettingsCloudflareRouteImport.update({
-    id: "/cloudflare",
-    path: "/cloudflare",
+    id: '/cloudflare',
+    path: '/cloudflare',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsAppearanceRoute =
   AuthenticatedSettingsAppearanceRouteImport.update({
-    id: "/appearance",
-    path: "/appearance",
+    id: '/appearance',
+    path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsApiKeysRoute =
   AuthenticatedSettingsApiKeysRouteImport.update({
-    id: "/api-keys",
-    path: "/api-keys",
+    id: '/api-keys',
+    path: '/api-keys',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsAboutRoute =
   AuthenticatedSettingsAboutRouteImport.update({
-    id: "/about",
-    path: "/about",
+    id: '/about',
+    path: '/about',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedChatConversationIdRoute =
   AuthenticatedChatConversationIdRouteImport.update({
-    id: "/$conversationId",
-    path: "/$conversationId",
+    id: '/$conversationId',
+    path: '/$conversationId',
     getParentRoute: () => AuthenticatedChatRoute,
   } as any)
 const AuthenticatedSettingsProvidersIndexRoute =
   AuthenticatedSettingsProvidersIndexRouteImport.update({
-    id: "/",
-    path: "/",
+    id: '/',
+    path: '/',
     getParentRoute: () => AuthenticatedSettingsProvidersRoute,
   } as any)
 const AuthenticatedSettingsProvidersIdRoute =
   AuthenticatedSettingsProvidersIdRouteImport.update({
-    id: "/$id",
-    path: "/$id",
+    id: '/$id',
+    path: '/$id',
     getParentRoute: () => AuthenticatedSettingsProvidersRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute
-  "/sign-in": typeof SignInRoute
-  "/sign-up": typeof SignUpRoute
-  "/chat": typeof AuthenticatedChatRouteWithChildren
-  "/dashboard": typeof AuthenticatedDashboardRoute
-  "/plugins": typeof AuthenticatedPluginsRoute
-  "/prompts": typeof AuthenticatedPromptsRoute
-  "/settings": typeof AuthenticatedSettingsRouteWithChildren
-  "/chat/$conversationId": typeof AuthenticatedChatConversationIdRoute
-  "/settings/about": typeof AuthenticatedSettingsAboutRoute
-  "/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
-  "/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
-  "/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
-  "/settings/providers": typeof AuthenticatedSettingsProvidersRouteWithChildren
-  "/settings/security": typeof AuthenticatedSettingsSecurityRoute
-  "/settings/themes": typeof AuthenticatedSettingsThemesRoute
-  "/settings/workspace": typeof AuthenticatedSettingsWorkspaceRoute
-  "/chat/": typeof AuthenticatedChatIndexRoute
-  "/settings/providers/$id": typeof AuthenticatedSettingsProvidersIdRoute
-  "/settings/providers/": typeof AuthenticatedSettingsProvidersIndexRoute
+  '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/chat': typeof AuthenticatedChatRouteWithChildren
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/plugins': typeof AuthenticatedPluginsRoute
+  '/prompts': typeof AuthenticatedPromptsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
+  '/settings/about': typeof AuthenticatedSettingsAboutRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
+  '/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
+  '/settings/providers': typeof AuthenticatedSettingsProvidersRouteWithChildren
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/settings/themes': typeof AuthenticatedSettingsThemesRoute
+  '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
+  '/chat/': typeof AuthenticatedChatIndexRoute
+  '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute
-  "/sign-in": typeof SignInRoute
-  "/sign-up": typeof SignUpRoute
-  "/dashboard": typeof AuthenticatedDashboardRoute
-  "/plugins": typeof AuthenticatedPluginsRoute
-  "/prompts": typeof AuthenticatedPromptsRoute
-  "/settings": typeof AuthenticatedSettingsRouteWithChildren
-  "/chat/$conversationId": typeof AuthenticatedChatConversationIdRoute
-  "/settings/about": typeof AuthenticatedSettingsAboutRoute
-  "/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
-  "/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
-  "/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
-  "/settings/security": typeof AuthenticatedSettingsSecurityRoute
-  "/settings/themes": typeof AuthenticatedSettingsThemesRoute
-  "/settings/workspace": typeof AuthenticatedSettingsWorkspaceRoute
-  "/chat": typeof AuthenticatedChatIndexRoute
-  "/settings/providers/$id": typeof AuthenticatedSettingsProvidersIdRoute
-  "/settings/providers": typeof AuthenticatedSettingsProvidersIndexRoute
+  '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/plugins': typeof AuthenticatedPluginsRoute
+  '/prompts': typeof AuthenticatedPromptsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
+  '/settings/about': typeof AuthenticatedSettingsAboutRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
+  '/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/settings/themes': typeof AuthenticatedSettingsThemesRoute
+  '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
+  '/chat': typeof AuthenticatedChatIndexRoute
+  '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/settings/providers': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  "/": typeof IndexRoute
-  "/_authenticated": typeof AuthenticatedRouteWithChildren
-  "/sign-in": typeof SignInRoute
-  "/sign-up": typeof SignUpRoute
-  "/_authenticated/chat": typeof AuthenticatedChatRouteWithChildren
-  "/_authenticated/dashboard": typeof AuthenticatedDashboardRoute
-  "/_authenticated/plugins": typeof AuthenticatedPluginsRoute
-  "/_authenticated/prompts": typeof AuthenticatedPromptsRoute
-  "/_authenticated/settings": typeof AuthenticatedSettingsRouteWithChildren
-  "/_authenticated/chat/$conversationId": typeof AuthenticatedChatConversationIdRoute
-  "/_authenticated/settings/about": typeof AuthenticatedSettingsAboutRoute
-  "/_authenticated/settings/api-keys": typeof AuthenticatedSettingsApiKeysRoute
-  "/_authenticated/settings/appearance": typeof AuthenticatedSettingsAppearanceRoute
-  "/_authenticated/settings/cloudflare": typeof AuthenticatedSettingsCloudflareRoute
-  "/_authenticated/settings/plugins": typeof AuthenticatedSettingsPluginsRoute
-  "/_authenticated/settings/providers": typeof AuthenticatedSettingsProvidersRouteWithChildren
-  "/_authenticated/settings/security": typeof AuthenticatedSettingsSecurityRoute
-  "/_authenticated/settings/themes": typeof AuthenticatedSettingsThemesRoute
-  "/_authenticated/settings/workspace": typeof AuthenticatedSettingsWorkspaceRoute
-  "/_authenticated/chat/": typeof AuthenticatedChatIndexRoute
-  "/_authenticated/settings/providers/$id": typeof AuthenticatedSettingsProvidersIdRoute
-  "/_authenticated/settings/providers/": typeof AuthenticatedSettingsProvidersIndexRoute
+  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRouteWithChildren
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/plugins': typeof AuthenticatedPluginsRoute
+  '/_authenticated/prompts': typeof AuthenticatedPromptsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/_authenticated/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
+  '/_authenticated/settings/about': typeof AuthenticatedSettingsAboutRoute
+  '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/cloudflare': typeof AuthenticatedSettingsCloudflareRoute
+  '/_authenticated/settings/plugins': typeof AuthenticatedSettingsPluginsRoute
+  '/_authenticated/settings/providers': typeof AuthenticatedSettingsProvidersRouteWithChildren
+  '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/_authenticated/settings/themes': typeof AuthenticatedSettingsThemesRoute
+  '/_authenticated/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
+  '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/_authenticated/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
+  '/_authenticated/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/sign-in"
-    | "/sign-up"
-    | "/chat"
-    | "/dashboard"
-    | "/plugins"
-    | "/prompts"
-    | "/settings"
-    | "/chat/$conversationId"
-    | "/settings/about"
-    | "/settings/api-keys"
-    | "/settings/appearance"
-    | "/settings/cloudflare"
-    | "/settings/plugins"
-    | "/settings/providers"
-    | "/settings/security"
-    | "/settings/themes"
-    | "/settings/workspace"
-    | "/chat/"
-    | "/settings/providers/$id"
-    | "/settings/providers/"
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/chat'
+    | '/dashboard'
+    | '/plugins'
+    | '/prompts'
+    | '/settings'
+    | '/chat/$conversationId'
+    | '/settings/about'
+    | '/settings/api-keys'
+    | '/settings/appearance'
+    | '/settings/cloudflare'
+    | '/settings/plugins'
+    | '/settings/providers'
+    | '/settings/security'
+    | '/settings/themes'
+    | '/settings/workspace'
+    | '/chat/'
+    | '/settings/providers/$id'
+    | '/settings/providers/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | "/"
-    | "/sign-in"
-    | "/sign-up"
-    | "/dashboard"
-    | "/plugins"
-    | "/prompts"
-    | "/settings"
-    | "/chat/$conversationId"
-    | "/settings/about"
-    | "/settings/api-keys"
-    | "/settings/appearance"
-    | "/settings/cloudflare"
-    | "/settings/plugins"
-    | "/settings/security"
-    | "/settings/themes"
-    | "/settings/workspace"
-    | "/chat"
-    | "/settings/providers/$id"
-    | "/settings/providers"
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/dashboard'
+    | '/plugins'
+    | '/prompts'
+    | '/settings'
+    | '/chat/$conversationId'
+    | '/settings/about'
+    | '/settings/api-keys'
+    | '/settings/appearance'
+    | '/settings/cloudflare'
+    | '/settings/plugins'
+    | '/settings/security'
+    | '/settings/themes'
+    | '/settings/workspace'
+    | '/chat'
+    | '/settings/providers/$id'
+    | '/settings/providers'
   id:
-    | "__root__"
-    | "/"
-    | "/_authenticated"
-    | "/sign-in"
-    | "/sign-up"
-    | "/_authenticated/chat"
-    | "/_authenticated/dashboard"
-    | "/_authenticated/plugins"
-    | "/_authenticated/prompts"
-    | "/_authenticated/settings"
-    | "/_authenticated/chat/$conversationId"
-    | "/_authenticated/settings/about"
-    | "/_authenticated/settings/api-keys"
-    | "/_authenticated/settings/appearance"
-    | "/_authenticated/settings/cloudflare"
-    | "/_authenticated/settings/plugins"
-    | "/_authenticated/settings/providers"
-    | "/_authenticated/settings/security"
-    | "/_authenticated/settings/themes"
-    | "/_authenticated/settings/workspace"
-    | "/_authenticated/chat/"
-    | "/_authenticated/settings/providers/$id"
-    | "/_authenticated/settings/providers/"
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/sign-in'
+    | '/sign-up'
+    | '/_authenticated/chat'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/plugins'
+    | '/_authenticated/prompts'
+    | '/_authenticated/settings'
+    | '/_authenticated/chat/$conversationId'
+    | '/_authenticated/settings/about'
+    | '/_authenticated/settings/api-keys'
+    | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/cloudflare'
+    | '/_authenticated/settings/plugins'
+    | '/_authenticated/settings/providers'
+    | '/_authenticated/settings/security'
+    | '/_authenticated/settings/themes'
+    | '/_authenticated/settings/workspace'
+    | '/_authenticated/chat/'
+    | '/_authenticated/settings/providers/$id'
+    | '/_authenticated/settings/providers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -301,159 +301,159 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/sign-up": {
-      id: "/sign-up"
-      path: "/sign-up"
-      fullPath: "/sign-up"
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/sign-in": {
-      id: "/sign-in"
-      path: "/sign-in"
-      fullPath: "/sign-in"
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/_authenticated": {
-      id: "/_authenticated"
-      path: ""
-      fullPath: "/"
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/": {
-      id: "/"
-      path: "/"
-      fullPath: "/"
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/_authenticated/settings": {
-      id: "/_authenticated/settings"
-      path: "/settings"
-      fullPath: "/settings"
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    "/_authenticated/prompts": {
-      id: "/_authenticated/prompts"
-      path: "/prompts"
-      fullPath: "/prompts"
+    '/_authenticated/prompts': {
+      id: '/_authenticated/prompts'
+      path: '/prompts'
+      fullPath: '/prompts'
       preLoaderRoute: typeof AuthenticatedPromptsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    "/_authenticated/plugins": {
-      id: "/_authenticated/plugins"
-      path: "/plugins"
-      fullPath: "/plugins"
+    '/_authenticated/plugins': {
+      id: '/_authenticated/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
       preLoaderRoute: typeof AuthenticatedPluginsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    "/_authenticated/dashboard": {
-      id: "/_authenticated/dashboard"
-      path: "/dashboard"
-      fullPath: "/dashboard"
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    "/_authenticated/chat": {
-      id: "/_authenticated/chat"
-      path: "/chat"
-      fullPath: "/chat"
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    "/_authenticated/chat/": {
-      id: "/_authenticated/chat/"
-      path: "/"
-      fullPath: "/chat/"
+    '/_authenticated/chat/': {
+      id: '/_authenticated/chat/'
+      path: '/'
+      fullPath: '/chat/'
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
-    "/_authenticated/settings/workspace": {
-      id: "/_authenticated/settings/workspace"
-      path: "/workspace"
-      fullPath: "/settings/workspace"
+    '/_authenticated/settings/workspace': {
+      id: '/_authenticated/settings/workspace'
+      path: '/workspace'
+      fullPath: '/settings/workspace'
       preLoaderRoute: typeof AuthenticatedSettingsWorkspaceRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/themes": {
-      id: "/_authenticated/settings/themes"
-      path: "/themes"
-      fullPath: "/settings/themes"
+    '/_authenticated/settings/themes': {
+      id: '/_authenticated/settings/themes'
+      path: '/themes'
+      fullPath: '/settings/themes'
       preLoaderRoute: typeof AuthenticatedSettingsThemesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/security": {
-      id: "/_authenticated/settings/security"
-      path: "/security"
-      fullPath: "/settings/security"
+    '/_authenticated/settings/security': {
+      id: '/_authenticated/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
       preLoaderRoute: typeof AuthenticatedSettingsSecurityRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/providers": {
-      id: "/_authenticated/settings/providers"
-      path: "/providers"
-      fullPath: "/settings/providers"
+    '/_authenticated/settings/providers': {
+      id: '/_authenticated/settings/providers'
+      path: '/providers'
+      fullPath: '/settings/providers'
       preLoaderRoute: typeof AuthenticatedSettingsProvidersRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/plugins": {
-      id: "/_authenticated/settings/plugins"
-      path: "/plugins"
-      fullPath: "/settings/plugins"
+    '/_authenticated/settings/plugins': {
+      id: '/_authenticated/settings/plugins'
+      path: '/plugins'
+      fullPath: '/settings/plugins'
       preLoaderRoute: typeof AuthenticatedSettingsPluginsRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/cloudflare": {
-      id: "/_authenticated/settings/cloudflare"
-      path: "/cloudflare"
-      fullPath: "/settings/cloudflare"
+    '/_authenticated/settings/cloudflare': {
+      id: '/_authenticated/settings/cloudflare'
+      path: '/cloudflare'
+      fullPath: '/settings/cloudflare'
       preLoaderRoute: typeof AuthenticatedSettingsCloudflareRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/appearance": {
-      id: "/_authenticated/settings/appearance"
-      path: "/appearance"
-      fullPath: "/settings/appearance"
+    '/_authenticated/settings/appearance': {
+      id: '/_authenticated/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/api-keys": {
-      id: "/_authenticated/settings/api-keys"
-      path: "/api-keys"
-      fullPath: "/settings/api-keys"
+    '/_authenticated/settings/api-keys': {
+      id: '/_authenticated/settings/api-keys'
+      path: '/api-keys'
+      fullPath: '/settings/api-keys'
       preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/settings/about": {
-      id: "/_authenticated/settings/about"
-      path: "/about"
-      fullPath: "/settings/about"
+    '/_authenticated/settings/about': {
+      id: '/_authenticated/settings/about'
+      path: '/about'
+      fullPath: '/settings/about'
       preLoaderRoute: typeof AuthenticatedSettingsAboutRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    "/_authenticated/chat/$conversationId": {
-      id: "/_authenticated/chat/$conversationId"
-      path: "/$conversationId"
-      fullPath: "/chat/$conversationId"
+    '/_authenticated/chat/$conversationId': {
+      id: '/_authenticated/chat/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/chat/$conversationId'
       preLoaderRoute: typeof AuthenticatedChatConversationIdRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
-    "/_authenticated/settings/providers/": {
-      id: "/_authenticated/settings/providers/"
-      path: "/"
-      fullPath: "/settings/providers/"
+    '/_authenticated/settings/providers/': {
+      id: '/_authenticated/settings/providers/'
+      path: '/'
+      fullPath: '/settings/providers/'
       preLoaderRoute: typeof AuthenticatedSettingsProvidersIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsProvidersRoute
     }
-    "/_authenticated/settings/providers/$id": {
-      id: "/_authenticated/settings/providers/$id"
-      path: "/$id"
-      fullPath: "/settings/providers/$id"
+    '/_authenticated/settings/providers/$id': {
+      id: '/_authenticated/settings/providers/$id'
+      path: '/$id'
+      fullPath: '/settings/providers/$id'
       preLoaderRoute: typeof AuthenticatedSettingsProvidersIdRouteImport
       parentRoute: typeof AuthenticatedSettingsProvidersRoute
     }
@@ -550,3 +550,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
