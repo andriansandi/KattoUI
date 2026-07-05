@@ -6,7 +6,8 @@ import { MessageItem } from "~/components/chat-message";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useConversations, useGenerateTitle } from "~/lib/queries/conversations";
-import { useCreateMessage, useMessages } from "~/lib/queries/messages";
+import { useMessages } from "~/lib/queries/messages";
+import { useStreamChat } from "~/lib/queries/stream-chat";
 import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/$conversationId")({
@@ -20,9 +21,11 @@ function ChatConversationPage() {
 	const { data: convData } = useConversations();
 	const conversation = convData?.conversations.find((c) => c.id === conversationId);
 	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
+	const pendingMessage = useUIStore((s) => s.pendingMessage);
+	const setPendingMessage = useUIStore((s) => s.setPendingMessage);
 
 	const { data, isLoading, isError, refetch } = useMessages(conversationId);
-	const createMessage = useCreateMessage(conversationId);
+	const streamChat = useStreamChat(conversationId);
 	const generateTitle = useGenerateTitle();
 
 	const [input, setInput] = useState("");
@@ -30,24 +33,33 @@ function ChatConversationPage() {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const messages = data?.messages ?? [];
 
+	const didHandlePending = useRef(false);
+	useEffect(() => {
+		if (
+			!pendingMessage ||
+			didHandlePending.current ||
+			streamChat.isStreaming ||
+			pendingMessage.conversationId !== conversationId
+		)
+			return;
+		didHandlePending.current = true;
+		setPendingMessage(null);
+		void handleSend(pendingMessage.content);
+	}, [pendingMessage, streamChat.isStreaming, conversationId, setPendingMessage]);
+
 	useEffect(() => {
 		const el = scrollRef.current;
-		if (!el || messages.length === 0) return;
+		if (!el || (messages.length === 0 && !streamChat.streamingContent)) return;
 		el.scrollTop = el.scrollHeight;
-	}, [messages]);
+	}, [messages, streamChat.streamingContent]);
 
-	function handleSend() {
-		if (!input.trim()) return;
+	async function handleSend(content?: string) {
+		const text = content ?? input;
+		if (!text.trim() || streamChat.isStreaming) return;
 		const isFirst = messages.length === 0;
-		createMessage.mutate(
-			{ role: "user", content: input },
-			{
-				onSuccess: () => {
-					if (isFirst) generateTitle.mutate(conversationId);
-				},
-			},
-		);
 		setInput("");
+		await streamChat.send(text);
+		if (isFirst) generateTitle.mutate(conversationId);
 	}
 
 	return (
@@ -55,6 +67,8 @@ function ChatConversationPage() {
 			<ChatHeader
 				title={conversation?.title ?? "Chat"}
 				model={conversation?.model}
+				providerConfigId={conversation?.providerConfigId}
+				conversationId={conversationId}
 				onToggleMobileSidebar={toggleMobileSidebar}
 			/>
 			<div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
@@ -71,20 +85,35 @@ function ChatConversationPage() {
 							Retry
 						</Button>
 					</div>
-				) : messages.length === 0 ? (
+				) : messages.length === 0 && !streamChat.isStreaming ? (
 					<div className="flex items-center justify-center py-12">
 						<p className="text-sm text-muted-foreground">No messages yet</p>
 					</div>
 				) : (
-					messages.map((m) => <MessageItem key={m.id} role={m.role} content={m.content} />)
+					<>
+						{messages.map((m) => (
+							<MessageItem key={m.id} role={m.role} content={m.content} />
+						))}
+						{streamChat.isStreaming && (
+							// biome-ignore lint/a11y/useValidAriaRole: role is a MessageItem prop, not an HTML attribute
+							<MessageItem role={"assistant"} content={streamChat.streamingContent} streaming />
+						)}
+						{streamChat.error && (
+							<div className="flex justify-center">
+								<p className="text-xs text-destructive">{streamChat.error}</p>
+							</div>
+						)}
+					</>
 				)}
 			</div>
 			<div className="px-4 pb-4 pt-2">
 				<ChatComposer
 					value={input}
 					onChange={setInput}
-					onSend={handleSend}
-					disabled={createMessage.isPending}
+					onSend={() => handleSend()}
+					disabled={streamChat.isStreaming}
+					isStreaming={streamChat.isStreaming}
+					onStop={streamChat.stop}
 				/>
 			</div>
 		</div>

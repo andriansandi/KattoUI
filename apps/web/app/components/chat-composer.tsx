@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { Send, Square } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
@@ -9,6 +9,8 @@ interface ChatComposerProps {
 	onChange: (value: string) => void;
 	onSend: () => void;
 	disabled?: boolean;
+	isStreaming?: boolean;
+	onStop?: () => void;
 	className?: string;
 }
 
@@ -19,6 +21,8 @@ export function ChatComposer({
 	onChange,
 	onSend,
 	disabled = false,
+	isStreaming = false,
+	onStop,
 	className,
 }: ChatComposerProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -60,19 +64,33 @@ export function ChatComposer({
 				onKeyDown={handleKeyDown}
 				placeholder="Message KattoUI..."
 				rows={1}
+				disabled={isStreaming}
 				className="max-h-[240px] min-h-[56px] resize-none border-0 bg-transparent px-4 py-3 pr-12 shadow-none focus-visible:ring-0"
 			/>
-			<Button
-				type="button"
-				variant="default"
-				size="icon"
-				className="absolute bottom-2 right-2 h-8 w-8 rounded-lg"
-				onClick={handleSend}
-				disabled={!canSend}
-				aria-label="Send message"
-			>
-				<Send className="h-4 w-4" />
-			</Button>
+			{isStreaming ? (
+				<Button
+					type="button"
+					variant="destructive"
+					size="icon"
+					className="absolute bottom-2 right-2 h-8 w-8 rounded-lg"
+					onClick={onStop}
+					aria-label="Stop generation"
+				>
+					<Square className="h-4 w-4" />
+				</Button>
+			) : (
+				<Button
+					type="button"
+					variant="default"
+					size="icon"
+					className="absolute bottom-2 right-2 h-8 w-8 rounded-lg"
+					onClick={handleSend}
+					disabled={!canSend}
+					aria-label="Send message"
+				>
+					<Send className="h-4 w-4" />
+				</Button>
+			)}
 		</div>
 	);
 }

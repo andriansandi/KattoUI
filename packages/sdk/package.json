@@ -12,6 +12,10 @@
 		"./chat": {
 			"types": "./src/chat.ts",
 			"default": "./src/chat.ts"
+		},
+		"./provider": {
+			"types": "./src/provider.ts",
+			"default": "./src/provider.ts"
 		}
 	},
 	"devDependencies": {

@@ -18,22 +18,40 @@ export class ApiError extends Error {
 }
 
 /**
+ * Returns a function that builds authenticated request headers. When a Clerk
+ * session is active, sends a `Bearer` token; otherwise falls back to the guest
+ * session header so unauthenticated users can still use the app.
+ */
+export function useAuthHeaders() {
+	const { getToken } = useAuth();
+
+	return useCallback(async () => {
+		const headers = new Headers();
+		headers.set("Content-Type", "application/json");
+		const token = await getToken();
+		if (token) {
+			headers.set("Authorization", `Bearer ${token}`);
+		} else {
+			headers.set("X-Guest-Session", getGuestSessionId());
+		}
+		return headers;
+	}, [getToken]);
+}
+
+/**
  * Returns a fetch helper that authenticates every request. When a Clerk
  * session is active, sends a `Bearer` token; otherwise falls back to the guest
  * session header so unauthenticated users can still use the app.
  */
 export function useAuthFetch() {
-	const { getToken } = useAuth();
+	const buildHeaders = useAuthHeaders();
 
 	return useCallback(
 		async function authFetch<T>(path: string, init?: RequestInit): Promise<T> {
-			const token = await getToken();
 			const headers = new Headers(init?.headers);
-			headers.set("Content-Type", "application/json");
-			if (token) {
-				headers.set("Authorization", `Bearer ${token}`);
-			} else {
-				headers.set("X-Guest-Session", getGuestSessionId());
+			const authHeaders = await buildHeaders();
+			for (const [key, value] of authHeaders.entries()) {
+				headers.set(key, value);
 			}
 
 			const response = await fetch(apiUrl(path), { ...init, headers });
@@ -63,6 +81,6 @@ export function useAuthFetch() {
 
 			return json as T;
 		},
-		[getToken],
+		[buildHeaders],
 	);
 }

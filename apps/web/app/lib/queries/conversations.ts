@@ -72,6 +72,9 @@ export function useUpdateConversation() {
 						const next: ConversationSummary = { ...c, updatedAt: Date.now() };
 						if (update.title !== undefined) next.title = update.title;
 						if (update.model !== undefined) next.model = update.model;
+						if (update.providerConfigId !== undefined && update.providerConfigId !== null) {
+							next.providerConfigId = update.providerConfigId;
+						}
 						if (update.pinned !== undefined) next.pinned = update.pinned;
 						if (update.favorited !== undefined) next.favorited = update.favorited;
 						return next;

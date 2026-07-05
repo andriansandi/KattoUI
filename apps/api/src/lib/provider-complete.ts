@@ -1,4 +1,5 @@
 import type { ProviderType } from "@katto/sdk/chat";
+import type { ChatChunk } from "@katto/sdk/provider";
 
 interface ChatMessage {
 	role: "user" | "assistant";
@@ -149,4 +150,258 @@ async function completeAnthropic(args: {
 		throw new ProviderCompleteError("Empty completion content");
 	}
 	return text;
+}
+
+/* ---------------------------------------------------------------------------
+ * Streaming completion
+ * -------------------------------------------------------------------------*/
+
+/**
+ * Streams a chat completion from the configured provider, yielding normalized
+ * `ChatChunk` values as content arrives. Reuses the same provider dispatch and
+ * header logic as `completeChat`.
+ */
+export async function* completeChatStream(params: CompleteChatParams): AsyncGenerator<ChatChunk> {
+	const origin = params.baseUrl.replace(/\/$/, "");
+	if (params.type === "anthropic") {
+		yield* completeAnthropicStream({
+			origin,
+			apiToken: params.apiToken,
+			model: params.model,
+			systemPrompt: params.systemPrompt,
+			messages: params.messages,
+			maxTokens: params.maxTokens,
+			signal: params.signal,
+		});
+		return;
+	}
+	yield* completeOpenAiStream({
+		origin,
+		apiToken: params.apiToken,
+		model: params.model,
+		systemPrompt: params.systemPrompt,
+		messages: params.messages,
+		maxTokens: params.maxTokens,
+		signal: params.signal,
+	});
+}
+
+async function* completeOpenAiStream(args: {
+	origin: string;
+	apiToken: string;
+	model: string;
+	systemPrompt?: string | undefined;
+	messages: ChatMessage[];
+	maxTokens?: number | undefined;
+	signal?: AbortSignal | undefined;
+}): AsyncGenerator<ChatChunk> {
+	const messages: Array<{ role: string; content: string }> = [...args.messages];
+	if (args.systemPrompt) {
+		messages.unshift({ role: "system", content: args.systemPrompt });
+	}
+
+	const body: Record<string, unknown> = {
+		model: args.model,
+		messages,
+		stream: true,
+		stream_options: { include_usage: true },
+	};
+	if (args.maxTokens !== undefined) {
+		body.max_tokens = args.maxTokens;
+	}
+
+	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	if (args.apiToken) {
+		headers.Authorization = `Bearer ${args.apiToken}`;
+	}
+
+	const res = await fetch(`${args.origin}/chat/completions`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify(body),
+		signal: args.signal ?? null,
+	});
+	if (!res.ok) {
+		throw new ProviderCompleteError(
+			`Provider responded ${res.status} ${res.statusText}`,
+			res.status,
+		);
+	}
+	if (!res.body) {
+		throw new ProviderCompleteError("No response body");
+	}
+
+	for await (const event of parseSseStream(res.body)) {
+		if (event.data === "[DONE]") {
+			yield { type: "done" };
+			return;
+		}
+		let json: Record<string, unknown>;
+		try {
+			json = JSON.parse(event.data) as Record<string, unknown>;
+		} catch {
+			continue;
+		}
+		const error = json.error as { message?: string } | undefined;
+		if (error?.message) {
+			yield { type: "error", error: error.message };
+			return;
+		}
+		const choices = json.choices as Array<{ delta?: { content?: string } }> | undefined;
+		const delta = choices?.[0]?.delta?.content;
+		if (typeof delta === "string" && delta.length > 0) {
+			yield { type: "content", content: delta };
+		}
+		const usage = json.usage as
+			| { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+			| undefined;
+		if (usage) {
+			const u: { promptTokens?: number; completionTokens?: number; totalTokens?: number } = {};
+			if (usage.prompt_tokens !== undefined) u.promptTokens = usage.prompt_tokens;
+			if (usage.completion_tokens !== undefined) u.completionTokens = usage.completion_tokens;
+			if (usage.total_tokens !== undefined) u.totalTokens = usage.total_tokens;
+			yield { type: "usage", usage: u };
+		}
+	}
+}
+
+async function* completeAnthropicStream(args: {
+	origin: string;
+	apiToken: string;
+	model: string;
+	systemPrompt?: string | undefined;
+	messages: ChatMessage[];
+	maxTokens?: number | undefined;
+	signal?: AbortSignal | undefined;
+}): AsyncGenerator<ChatChunk> {
+	const body: Record<string, unknown> = {
+		model: args.model,
+		messages: args.messages,
+		max_tokens: args.maxTokens ?? 4096,
+		stream: true,
+	};
+	if (args.systemPrompt) {
+		body.system = args.systemPrompt;
+	}
+
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		"anthropic-version": "2023-06-01",
+	};
+	if (args.apiToken) {
+		headers["x-api-key"] = args.apiToken;
+	}
+
+	const res = await fetch(`${args.origin}/messages`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify(body),
+		signal: args.signal ?? null,
+	});
+	if (!res.ok) {
+		throw new ProviderCompleteError(
+			`Provider responded ${res.status} ${res.statusText}`,
+			res.status,
+		);
+	}
+	if (!res.body) {
+		throw new ProviderCompleteError("No response body");
+	}
+
+	let inputTokens: number | undefined;
+
+	for await (const event of parseSseStream(res.body)) {
+		let json: Record<string, unknown>;
+		try {
+			json = JSON.parse(event.data) as Record<string, unknown>;
+		} catch {
+			continue;
+		}
+		const type = json.type as string | undefined;
+		if (type === "message_start") {
+			const message = json.message as { usage?: { input_tokens?: number } } | undefined;
+			inputTokens = message?.usage?.input_tokens;
+		} else if (type === "content_block_delta") {
+			const delta = json.delta as { type?: string; text?: string } | undefined;
+			if (delta?.type === "text_delta" && typeof delta.text === "string") {
+				yield { type: "content", content: delta.text };
+			}
+		} else if (type === "message_delta") {
+			const usage = json.usage as { output_tokens?: number } | undefined;
+			if (usage?.output_tokens !== undefined) {
+				const u: { promptTokens?: number; completionTokens?: number; totalTokens?: number } = {
+					completionTokens: usage.output_tokens,
+				};
+				if (inputTokens !== undefined) {
+					u.promptTokens = inputTokens;
+					u.totalTokens = inputTokens + usage.output_tokens;
+				}
+				yield { type: "usage", usage: u };
+			}
+		} else if (type === "error") {
+			const error = json.error as { message?: string } | undefined;
+			yield { type: "error", error: error?.message ?? "Unknown provider error" };
+			return;
+		} else if (type === "message_stop") {
+			yield { type: "done" };
+			return;
+		}
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * SSE parsing
+ * -------------------------------------------------------------------------*/
+
+interface SseEvent {
+	event?: string | undefined;
+	data: string;
+}
+
+/**
+ * Parses a `ReadableStream<Uint8Array>` of SSE-formatted data into individual
+ * events. Buffers bytes, splits on double-newline boundaries, and extracts
+ * `event:` / `data:` fields from each block.
+ */
+async function* parseSseStream(body: ReadableStream<Uint8Array>): AsyncGenerator<SseEvent> {
+	const reader = body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+
+			let idx = buffer.indexOf("\n\n");
+			while (idx !== -1) {
+				const block = buffer.slice(0, idx);
+				buffer = buffer.slice(idx + 2);
+				const parsed = parseSseBlock(block);
+				if (parsed !== null) yield parsed;
+				idx = buffer.indexOf("\n\n");
+			}
+		}
+		if (buffer.trim().length > 0) {
+			const parsed = parseSseBlock(buffer);
+			if (parsed !== null) yield parsed;
+		}
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+function parseSseBlock(block: string): SseEvent | null {
+	let event: string | undefined;
+	const dataLines: string[] = [];
+	for (const line of block.split("\n")) {
+		if (line.startsWith("event: ")) {
+			event = line.slice(7).trim();
+		} else if (line.startsWith("data: ")) {
+			dataLines.push(line.slice(6));
+		}
+	}
+	if (dataLines.length === 0) return null;
+	return { event, data: dataLines.join("\n") };
 }

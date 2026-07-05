@@ -3,16 +3,20 @@ import type {
 	ConversationSummary,
 	MessagePreview,
 	StoredMessage,
+	StreamChatEvent,
 } from "@katto/sdk/chat";
 import { and, asc, count, desc, eq, inArray, max, min } from "drizzle-orm";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
-import { conversations, messages, providerConfigs } from "../../db/schema.js";
-import { completeChat } from "../lib/provider-complete.js";
+import { conversations, messages } from "../../db/schema.js";
+import { completeChat, completeChatStream } from "../lib/provider-complete.js";
+import { resolveProviderConfig } from "../lib/provider-resolve.js";
 import {
 	conversationCreateSchema,
 	conversationUpdateSchema,
 	messageCreateSchema,
+	streamMessageSchema,
 	validateBody,
 } from "../lib/validation.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -54,6 +58,9 @@ function toSummary(
 	};
 	if (row.model !== null) {
 		summary.model = row.model;
+	}
+	if (row.providerConfigId !== null) {
+		summary.providerConfigId = row.providerConfigId;
 	}
 	if (preview !== undefined) {
 		summary.preview = preview;
@@ -368,28 +375,12 @@ app.post("/:id/generate-title", async (c) => {
 		return c.json({ error: "Conversation not found" }, 404);
 	}
 
-	let config: typeof providerConfigs.$inferSelect | null = null;
-	if (conv.providerConfigId) {
-		const [pc] = await db
-			.select()
-			.from(providerConfigs)
-			.where(and(eq(providerConfigs.id, conv.providerConfigId), eq(providerConfigs.userId, userId)))
-			.limit(1);
-		config = pc ?? null;
-	} else {
-		const [pc] = await db
-			.select()
-			.from(providerConfigs)
-			.where(eq(providerConfigs.userId, userId))
-			.orderBy(desc(providerConfigs.createdAt))
-			.limit(1);
-		config = pc ?? null;
-	}
-
-	const model = conv.model ?? config?.defaultModel ?? null;
-	if (!config || !model) {
+	const resolved = await resolveProviderConfig(db, userId, conv);
+	if (!resolved) {
 		return c.json({ title: conv.title, generated: false });
 	}
+
+	const { config, model } = resolved;
 
 	const [firstUser] = await db
 		.select()
@@ -439,6 +430,158 @@ app.post("/:id/generate-title", async (c) => {
 	} finally {
 		clearTimeout(timer);
 	}
+});
+
+app.post("/:id/messages/stream", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const result = await validateBody(c, streamMessageSchema);
+	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
+	const { content } = result.data;
+
+	const db = createDb(c.env.DB);
+
+	const [conv] = await db
+		.select()
+		.from(conversations)
+		.where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+		.limit(1);
+
+	if (!conv) {
+		return c.json({ error: "Conversation not found" }, 404);
+	}
+
+	const resolved = await resolveProviderConfig(db, userId, conv);
+	if (!resolved) {
+		return c.json({ error: "No provider configured" }, 400);
+	}
+
+	const { config, model } = resolved;
+
+	const now = Date.now();
+	const assistantMessageId = crypto.randomUUID();
+
+	await db.insert(messages).values({
+		id: crypto.randomUUID(),
+		conversationId: id,
+		role: "user",
+		content,
+		createdAt: now,
+	});
+
+	let autoTitle: string | undefined;
+	if (conv.title === DEFAULT_TITLE) {
+		const [countRow] = await db
+			.select({ n: count() })
+			.from(messages)
+			.where(and(eq(messages.conversationId, id), eq(messages.role, "user")));
+		if ((countRow?.n ?? 0) === 1) {
+			autoTitle = truncate(content, AUTO_TITLE_LIMIT);
+		}
+	}
+
+	await db
+		.update(conversations)
+		.set({
+			updatedAt: now,
+			...(autoTitle !== undefined && { title: autoTitle }),
+		})
+		.where(eq(conversations.id, id));
+
+	const allMessages = await db
+		.select()
+		.from(messages)
+		.where(eq(messages.conversationId, id))
+		.orderBy(asc(messages.createdAt));
+
+	const chatMessages = allMessages
+		.filter((m) => m.role === "user" || m.role === "assistant")
+		.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+	const upstreamController = new AbortController();
+
+	return streamSSE(c, async (stream) => {
+		stream.onAbort(() => upstreamController.abort());
+
+		const metaEvent: StreamChatEvent = {
+			type: "meta",
+			messageId: assistantMessageId,
+			model,
+		};
+		await stream.writeSSE({ data: JSON.stringify(metaEvent) });
+
+		let accumulated = "";
+		let usage:
+			| { promptTokens?: number; completionTokens?: number; totalTokens?: number }
+			| undefined;
+		let hadError = false;
+
+		try {
+			for await (const chunk of completeChatStream({
+				type: config.type,
+				baseUrl: config.baseUrl,
+				apiToken: config.apiToken,
+				model,
+				messages: chatMessages,
+				signal: upstreamController.signal,
+			})) {
+				if (chunk.type === "content" && chunk.content) {
+					accumulated += chunk.content;
+					const deltaEvent: StreamChatEvent = {
+						type: "delta",
+						content: chunk.content,
+					};
+					await stream.writeSSE({ data: JSON.stringify(deltaEvent) });
+				} else if (chunk.type === "usage" && chunk.usage) {
+					usage = chunk.usage;
+				} else if (chunk.type === "error") {
+					hadError = true;
+					const errorEvent: StreamChatEvent = {
+						type: "error",
+						message: chunk.error ?? "Unknown error",
+					};
+					await stream.writeSSE({ data: JSON.stringify(errorEvent) });
+					break;
+				} else if (chunk.type === "done") {
+					break;
+				}
+			}
+		} catch {
+			if (accumulated.length === 0) {
+				const errorEvent: StreamChatEvent = {
+					type: "error",
+					message: "Provider request failed",
+				};
+				await stream.writeSSE({ data: JSON.stringify(errorEvent) });
+				return;
+			}
+		}
+
+		if (accumulated.length > 0) {
+			await db.insert(messages).values({
+				id: assistantMessageId,
+				conversationId: id,
+				role: "assistant",
+				content: accumulated,
+				model,
+				tokensPrompt: usage?.promptTokens ?? null,
+				tokensCompletion: usage?.completionTokens ?? null,
+				tokensTotal: usage?.totalTokens ?? null,
+				createdAt: Date.now(),
+			});
+
+			await db.update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, id));
+		}
+
+		if (!hadError) {
+			const doneEvent: StreamChatEvent = {
+				type: "done",
+				messageId: assistantMessageId,
+				...(usage !== undefined && { usage }),
+			};
+			await stream.writeSSE({ data: JSON.stringify(doneEvent) });
+		}
+	});
 });
 
 export { app as conversationsRoute };

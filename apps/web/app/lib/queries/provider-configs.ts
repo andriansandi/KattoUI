@@ -78,3 +78,17 @@ export function useTestProviderConfig() {
 			}),
 	});
 }
+
+interface ProviderModelsResponse {
+	models: string[];
+	error?: string;
+}
+
+export function useProviderModels(configId: string | undefined) {
+	const authFetch = useAuthFetch();
+	return useQuery({
+		queryKey: ["provider-models", configId],
+		enabled: configId !== undefined,
+		queryFn: () => authFetch<ProviderModelsResponse>(`/provider-configs/${configId}/models`),
+	});
+}
