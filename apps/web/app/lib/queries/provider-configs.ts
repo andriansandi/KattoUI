@@ -3,6 +3,7 @@ import type {
 	ProviderConfigInput,
 	ProviderConfigUpdate,
 	ProviderModelEntry,
+	ProviderModelGroup,
 	ProviderStatus,
 	ProviderType,
 } from "@katto/sdk";
@@ -97,6 +98,19 @@ export function useTestSavedProviderConfig() {
 
 interface ProviderModelsResponse {
 	models: ProviderModelEntry[];
+}
+
+interface AllEnabledModelsResponse {
+	groups: ProviderModelGroup[];
+}
+
+/** Enabled models across all provider configs, grouped by config (chat selector). */
+export function useAllEnabledModels() {
+	const authFetch = useAuthFetch();
+	return useQuery({
+		queryKey: ["provider-models-all"],
+		queryFn: () => authFetch<AllEnabledModelsResponse>("/provider-configs/models"),
+	});
 }
 
 export function useProviderModels(configId: string | undefined) {

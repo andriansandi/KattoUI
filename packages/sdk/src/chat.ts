@@ -11,6 +11,13 @@ export interface ProviderModelEntry {
 	enabled: boolean;
 }
 
+/** Enabled models grouped by provider config, for the chat model selector. */
+export interface ProviderModelGroup {
+	providerConfigId: string;
+	providerName: string;
+	models: Array<{ id: string; name: string }>;
+}
+
 /** A provider configuration stored per user. */
 export interface ProviderConfig {
 	id: string;

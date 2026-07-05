@@ -1,37 +1,59 @@
 import type { ConversationInput } from "@katto/sdk";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Menu, PawPrint } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { Button } from "~/components/ui/button";
 import { Dropdown } from "~/components/ui/dropdown";
+import type { DropdownGroup } from "~/components/ui/dropdown";
 import { useCreateConversation } from "~/lib/queries/conversations";
-import { useProviderConfigs, useProviderModels } from "~/lib/queries/provider-configs";
+import { useAllEnabledModels, useProviderConfigs } from "~/lib/queries/provider-configs";
 import { useUIStore } from "~/stores/ui-store";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
 	component: ChatEmptyState,
 });
 
+function compositeKey(providerConfigId: string, model: string): string {
+	return `${providerConfigId}:${model}`;
+}
+
+function splitComposite(value: string): { providerConfigId: string; model: string } {
+	const sep = value.indexOf(":");
+	return { providerConfigId: value.slice(0, sep), model: value.slice(sep + 1) };
+}
+
 function ChatEmptyState() {
 	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
 	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 	const navigate = useNavigate();
 	const createConversation = useCreateConversation();
+	const { data: allModels } = useAllEnabledModels();
 	const { data: configsData } = useProviderConfigs();
-	const configs = configsData?.providerConfigs ?? [];
 
 	const [input, setInput] = useState("");
 	const [isStarting, setIsStarting] = useState(false);
-	const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>(configs[0]?.id);
-	const { data: modelsData } = useProviderModels(selectedConfigId);
-	const modelOptions =
-		modelsData?.models?.filter((m) => m.enabled).map((m) => ({ value: m.id, label: m.name })) ?? [];
-	const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
-
-	const configOptions = configs.map((c) => ({ value: c.id, label: c.name }));
-
+	const [selected, setSelected] = useState<string | undefined>(undefined);
 	const setPendingMessage = useUIStore((s) => s.setPendingMessage);
+
+	// Default to the most-recent provider config's default model once loaded.
+	useEffect(() => {
+		if (selected !== undefined) return;
+		const configs = configsData?.providerConfigs ?? [];
+		if (configs.length === 0) return;
+		const recent = [...configs].sort((a, b) => b.createdAt - a.createdAt)[0];
+		if (recent?.defaultModel) {
+			setSelected(compositeKey(recent.id, recent.defaultModel));
+		}
+	}, [configsData, selected]);
+
+	const groups: DropdownGroup[] = (allModels?.groups ?? []).map((g) => ({
+		label: g.providerName,
+		options: g.models.map((m) => ({
+			value: compositeKey(g.providerConfigId, m.id),
+			label: m.name,
+		})),
+	}));
 
 	async function handleSend() {
 		if (!input.trim() || isStarting) return;
@@ -41,8 +63,11 @@ function ChatEmptyState() {
 
 		try {
 			const convInput: ConversationInput = {};
-			if (selectedConfigId !== undefined) convInput.providerConfigId = selectedConfigId;
-			if (selectedModel !== undefined) convInput.model = selectedModel;
+			if (selected !== undefined) {
+				const { providerConfigId, model } = splitComposite(selected);
+				convInput.providerConfigId = providerConfigId;
+				convInput.model = model;
+			}
 			const conversation = await createConversation.mutateAsync(convInput);
 			setPendingMessage({ conversationId: conversation.id, content });
 			navigate({
@@ -76,23 +101,9 @@ function ChatEmptyState() {
 				<p className="mt-2 text-sm text-muted-foreground">
 					Pick a model and send your first message.
 				</p>
-				{configs.length > 0 && (
-					<div className="mt-4 flex items-center gap-2">
-						<Dropdown
-							value={selectedConfigId}
-							options={configOptions}
-							placeholder="Provider"
-							onChange={(v) => {
-								setSelectedConfigId(v);
-								setSelectedModel(undefined);
-							}}
-						/>
-						<Dropdown
-							value={selectedModel}
-							options={modelOptions}
-							placeholder="Model"
-							onChange={setSelectedModel}
-						/>
+				{groups.length > 0 && (
+					<div className="mt-4">
+						<Dropdown value={selected} groups={groups} placeholder="Model" onChange={setSelected} />
 					</div>
 				)}
 			</div>

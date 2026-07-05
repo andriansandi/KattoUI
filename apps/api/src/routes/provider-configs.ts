@@ -1,6 +1,7 @@
 import type {
 	ProviderConfig,
 	ProviderModelEntry,
+	ProviderModelGroup,
 	ProviderStatus,
 	ProviderType,
 } from "@katto/sdk/chat";
@@ -223,6 +224,42 @@ app.get("/", async (c) => {
 	const rows = await db.select().from(providerConfigs).where(eq(providerConfigs.userId, userId));
 
 	return c.json({ providerConfigs: rows.map(toProviderConfig) });
+});
+
+/**
+ * Returns enabled models across all of the user's provider configs, grouped by
+ * config. Powers the single grouped model selector in chat. Registered before
+ * the `/:id` routes so the literal `/models` segment isn't captured as an id.
+ */
+app.get("/models", async (c) => {
+	const userId = c.get("userId");
+	const db = createDb(c.env.DB);
+
+	const rows = await db
+		.select({
+			providerConfigId: providerModels.providerConfigId,
+			providerName: providerConfigs.name,
+			modelId: providerModels.modelId,
+			modelName: providerModels.name,
+		})
+		.from(providerModels)
+		.innerJoin(providerConfigs, eq(providerModels.providerConfigId, providerConfigs.id))
+		.where(and(eq(providerConfigs.userId, userId), eq(providerModels.enabled, 1)))
+		.orderBy(asc(providerConfigs.name), asc(providerModels.name));
+
+	const groups: ProviderModelGroup[] = [];
+	const byConfig = new Map<string, ProviderModelGroup>();
+	for (const r of rows) {
+		let g = byConfig.get(r.providerConfigId);
+		if (!g) {
+			g = { providerConfigId: r.providerConfigId, providerName: r.providerName, models: [] };
+			byConfig.set(r.providerConfigId, g);
+			groups.push(g);
+		}
+		g.models.push({ id: r.modelId, name: r.modelName });
+	}
+
+	return c.json({ groups });
 });
 
 app.post("/", async (c) => {
