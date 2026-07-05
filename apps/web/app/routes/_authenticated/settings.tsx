@@ -42,7 +42,7 @@ function SettingsLayout() {
 					<nav className="w-full shrink-0 lg:w-56">
 						<div className="space-y-1">
 							{settingsPages.map((page) => {
-								const active = pathname === page.to;
+								const active = pathname === page.to || pathname.startsWith(`${page.to}/`);
 								return (
 									<Link
 										key={page.to}
