@@ -14,8 +14,9 @@ import {
 	EyeOff,
 	Loader2,
 	Plug,
-	RefreshCw,
+	Plus,
 	Star,
+	Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -27,10 +28,11 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/cn";
 import { formatRelativeTime, statusDotClass, statusLabel } from "~/lib/provider-status";
 import {
+	useAddProviderModel,
 	useCreateProviderConfig,
+	useDeleteProviderModel,
 	useProviderConfigs,
 	useProviderModels,
-	useRefreshProviderModels,
 	useTestProviderConfig,
 	useTestSavedProviderConfig,
 	useUpdateProviderConfig,
@@ -423,14 +425,12 @@ function HealthSection({
 	config: ProviderConfig;
 }) {
 	const testMutation = useTestSavedProviderConfig();
-	const refreshMutation = useRefreshProviderModels();
-	const updateMutation = useUpdateProviderConfig();
 
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle>Health</CardTitle>
-				<CardDescription>Connection status and model sync.</CardDescription>
+				<CardDescription>Connection status.</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
 				<div className="flex items-center gap-2">
@@ -462,22 +462,6 @@ function HealthSection({
 						)}
 						Test connection
 					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={refreshMutation.isPending}
-						onClick={() => refreshMutation.mutate(config.id)}
-					>
-						{refreshMutation.isPending ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<RefreshCw className="h-4 w-4" />
-						)}
-						Refresh models
-					</Button>
-					{updateMutation.isPending && (
-						<span className="text-xs text-muted-foreground">Saving…</span>
-					)}
 				</div>
 			</CardContent>
 		</Card>
@@ -492,7 +476,10 @@ function ModelsSection({
 	const { data: modelsData, isLoading } = useProviderModels(config.id);
 	const updateModels = useUpdateProviderModels(config.id);
 	const updateConfig = useUpdateProviderConfig();
+	const addModel = useAddProviderModel(config.id);
+	const deleteModel = useDeleteProviderModel(config.id);
 	const [search, setSearch] = useState("");
+	const [newModelId, setNewModelId] = useState("");
 
 	const models = modelsData?.models ?? [];
 	const filtered = useMemo(() => {
@@ -511,6 +498,12 @@ function ModelsSection({
 		updateConfig.mutate({ id: config.id, defaultModel: modelId });
 	}
 
+	function handleAddModel() {
+		const id = newModelId.trim();
+		if (!id) return;
+		addModel.mutate({ modelId: id }, { onSuccess: () => setNewModelId("") });
+	}
+
 	return (
 		<Card>
 			<CardHeader className="flex-row items-center justify-between">
@@ -522,17 +515,47 @@ function ModelsSection({
 				</div>
 			</CardHeader>
 			<CardContent className="space-y-3">
-				<Input
-					placeholder="Search models"
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-				/>
+				<div className="flex gap-2">
+					<Input
+						placeholder="Model ID (e.g. gpt-4o-mini)"
+						value={newModelId}
+						onChange={(e) => setNewModelId(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								handleAddModel();
+							}
+						}}
+					/>
+					<Button
+						size="sm"
+						variant="outline"
+						className="shrink-0"
+						disabled={!newModelId.trim() || addModel.isPending}
+						onClick={handleAddModel}
+					>
+						{addModel.isPending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Plus className="h-4 w-4" />
+						)}
+						Add
+					</Button>
+				</div>
+				{addModel.isError && <p className="text-xs text-destructive">{addModel.error?.message}</p>}
+				{models.length > 0 && (
+					<Input
+						placeholder="Search models"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+					/>
+				)}
 				{isLoading ? (
 					<p className="py-6 text-center text-sm text-muted-foreground">Loading models…</p>
 				) : filtered.length === 0 ? (
 					<p className="py-6 text-center text-sm text-muted-foreground">
 						{models.length === 0
-							? "No models yet. Use Refresh models in the Health section."
+							? "No models yet. Add a model above to get started."
 							: "No matches found."}
 					</p>
 				) : (
@@ -580,6 +603,16 @@ function ModelsSection({
 											Set default
 										</Button>
 									)}
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+										disabled={deleteModel.isPending}
+										onClick={() => deleteModel.mutate(m.id)}
+										aria-label="Remove model"
+									>
+										<Trash2 className="h-3.5 w-3.5" />
+									</Button>
 								</div>
 							);
 						})}

@@ -122,16 +122,36 @@ export function useProviderModels(configId: string | undefined) {
 	});
 }
 
-/** Re-syncs a provider's model catalog from the live provider API. */
-export function useRefreshProviderModels() {
+/** Adds a model to a provider's catalog (enabled by default). */
+export function useAddProviderModel(configId: string) {
 	const authFetch = useAuthFetch();
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) =>
-			authFetch<ProviderModelsResponse>(`/provider-configs/${id}/refresh-models`, {
+		mutationFn: (input: { modelId: string; name?: string }) =>
+			authFetch<ProviderModelsResponse>(`/provider-configs/${configId}/models`, {
 				method: "POST",
+				body: JSON.stringify(input),
 			}),
-		onSuccess: (_data, id) => qc.invalidateQueries({ queryKey: ["provider-models", id] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["provider-models", configId] });
+			qc.invalidateQueries({ queryKey: ["provider-models-all"] });
+		},
+	});
+}
+
+/** Removes a model from a provider's catalog. */
+export function useDeleteProviderModel(configId: string) {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (modelId: string) =>
+			authFetch<void>(`/provider-configs/${configId}/models/${modelId}`, {
+				method: "DELETE",
+			}),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["provider-models", configId] });
+			qc.invalidateQueries({ queryKey: ["provider-models-all"] });
+		},
 	});
 }
 
@@ -145,6 +165,9 @@ export function useUpdateProviderModels(configId: string) {
 				method: "PATCH",
 				body: JSON.stringify(input),
 			}),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["provider-models", configId] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["provider-models", configId] });
+			qc.invalidateQueries({ queryKey: ["provider-models-all"] });
+		},
 	});
 }

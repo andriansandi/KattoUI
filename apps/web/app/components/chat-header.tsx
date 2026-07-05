@@ -2,14 +2,13 @@ import { Menu, MoreHorizontal } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Dropdown } from "~/components/ui/dropdown";
 import type { DropdownGroup } from "~/components/ui/dropdown";
-import { useUpdateConversation } from "~/lib/queries/conversations";
 import { useAllEnabledModels } from "~/lib/queries/provider-configs";
 
 interface ChatHeaderProps {
 	title: string;
-	model?: string | undefined;
-	providerConfigId?: string | undefined;
-	conversationId: string;
+	selectedModel?: string | undefined;
+	selectedProviderConfigId?: string | undefined;
+	onModelChange: (providerConfigId: string, model: string) => void;
 	onToggleMobileSidebar: () => void;
 }
 
@@ -25,13 +24,12 @@ function splitComposite(value: string): { providerConfigId: string; model: strin
 
 export function ChatHeader({
 	title,
-	model,
-	providerConfigId,
-	conversationId,
+	selectedModel,
+	selectedProviderConfigId,
+	onModelChange,
 	onToggleMobileSidebar,
 }: ChatHeaderProps) {
 	const { data: allModels } = useAllEnabledModels();
-	const updateConversation = useUpdateConversation();
 
 	const groups: DropdownGroup[] = (allModels?.groups ?? []).map((g) => ({
 		label: g.providerName,
@@ -42,27 +40,23 @@ export function ChatHeader({
 	}));
 
 	const currentValue =
-		providerConfigId !== undefined && model !== undefined
-			? compositeKey(providerConfigId, model)
+		selectedProviderConfigId !== undefined && selectedModel !== undefined
+			? compositeKey(selectedProviderConfigId, selectedModel)
 			: undefined;
 
 	// If the saved model is not in any group (disabled, or catalog not synced),
 	// surface it as a fallback so the selector still shows something.
 	const hasCurrent = groups.some((g) => g.options.some((o) => o.value === currentValue));
-	if (!hasCurrent && currentValue !== undefined && model !== undefined) {
+	if (!hasCurrent && currentValue !== undefined && selectedModel !== undefined) {
 		groups.unshift({
 			label: "Current",
-			options: [{ value: currentValue, label: model }],
+			options: [{ value: currentValue, label: selectedModel }],
 		});
 	}
 
 	function handleChange(value: string) {
-		const { providerConfigId: newConfigId, model: newModel } = splitComposite(value);
-		updateConversation.mutate({
-			id: conversationId,
-			providerConfigId: newConfigId,
-			model: newModel,
-		});
+		const { providerConfigId, model } = splitComposite(value);
+		onModelChange(providerConfigId, model);
 	}
 
 	return (

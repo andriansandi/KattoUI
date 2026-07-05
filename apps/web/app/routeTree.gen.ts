@@ -18,6 +18,7 @@ import { Route as AuthenticatedPromptsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPluginsRouteImport } from './routes/_authenticated/plugins'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedSettingsWorkspaceRouteImport } from './routes/_authenticated/settings/workspace'
 import { Route as AuthenticatedSettingsThemesRouteImport } from './routes/_authenticated/settings/themes'
@@ -76,6 +77,12 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -174,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
   '/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
@@ -184,7 +192,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/plugins': typeof AuthenticatedPluginsRoute
   '/prompts': typeof AuthenticatedPromptsRoute
-  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/settings/about': typeof AuthenticatedSettingsAboutRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
   '/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
   '/settings/providers': typeof AuthenticatedSettingsProvidersIndexRoute
 }
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/themes': typeof AuthenticatedSettingsThemesRoute
   '/_authenticated/settings/workspace': typeof AuthenticatedSettingsWorkspaceRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/settings/providers/$id': typeof AuthenticatedSettingsProvidersIdRoute
   '/_authenticated/settings/providers/': typeof AuthenticatedSettingsProvidersIndexRoute
 }
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/settings/workspace'
     | '/chat/'
+    | '/settings/'
     | '/settings/providers/$id'
     | '/settings/providers/'
   fileRoutesByTo: FileRoutesByTo
@@ -255,7 +265,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/plugins'
     | '/prompts'
-    | '/settings'
     | '/chat/$conversationId'
     | '/settings/about'
     | '/settings/api-keys'
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/settings/workspace'
     | '/chat'
+    | '/settings'
     | '/settings/providers/$id'
     | '/settings/providers'
   id:
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/themes'
     | '/_authenticated/settings/workspace'
     | '/_authenticated/chat/'
+    | '/_authenticated/settings/'
     | '/_authenticated/settings/providers/$id'
     | '/_authenticated/settings/providers/'
   fileRoutesById: FileRoutesById
@@ -365,6 +376,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/chat'
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/_authenticated/chat/': {
       id: '/_authenticated/chat/'
@@ -501,6 +519,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
   AuthenticatedSettingsThemesRoute: typeof AuthenticatedSettingsThemesRoute
   AuthenticatedSettingsWorkspaceRoute: typeof AuthenticatedSettingsWorkspaceRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
@@ -514,6 +533,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
   AuthenticatedSettingsThemesRoute: AuthenticatedSettingsThemesRoute,
   AuthenticatedSettingsWorkspaceRoute: AuthenticatedSettingsWorkspaceRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }
 
 const AuthenticatedSettingsRouteWithChildren =

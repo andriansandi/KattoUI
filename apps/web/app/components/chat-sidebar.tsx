@@ -171,7 +171,7 @@ function ChatSidebarContent() {
 
 			<div className="flex flex-shrink-0 items-center justify-between border-t p-3">
 				<Link
-					to="/settings/appearance"
+					to="/settings/providers"
 					className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
 					onClick={() => setMobileSidebarOpen(false)}
 				>

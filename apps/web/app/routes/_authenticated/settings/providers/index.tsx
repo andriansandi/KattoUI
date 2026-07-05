@@ -93,7 +93,7 @@ function ProvidersContent() {
 					onClick={() => navigate({ to: "/settings/providers/$id", params: { id: "new" } })}
 				>
 					<Plus className="h-4 w-4" />
-					Add provider
+					<span className="hidden sm:inline">Add provider</span>
 				</Button>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -125,8 +125,8 @@ function ProvidersContent() {
 						const isConfirming = confirmDelete === config.id;
 						const isTesting = testingId === config.id;
 						return (
-							<div key={config.id} className="rounded-lg border p-4">
-								<div className="flex items-start justify-between gap-3">
+							<div key={config.id} className="rounded-lg border p-3 sm:p-4">
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center gap-2">
 											<span

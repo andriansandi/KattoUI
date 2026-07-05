@@ -28,6 +28,22 @@ export class ProviderCompleteError extends Error {
 }
 
 /**
+ * Reads the upstream error response body and builds a descriptive message.
+ * Falls back to status text when the body is not JSON or has no message.
+ */
+async function buildProviderError(res: Response): Promise<ProviderCompleteError> {
+	let detail = `${res.status} ${res.statusText}`;
+	try {
+		const body = (await res.json()) as { error?: { message?: string }; message?: string };
+		const msg = body.error?.message ?? body.message;
+		if (msg) detail = `${res.status} — ${msg}`;
+	} catch {
+		// response body is not JSON — use status text only
+	}
+	return new ProviderCompleteError(`Provider responded ${detail}`, res.status);
+}
+
+/**
  * Sends a non-streaming chat completion to the configured provider. OpenAI and
  * custom providers share the `/chat/completions` shape; Anthropic uses
  * `/messages` with the system prompt carried in a top-level `system` field.
@@ -222,10 +238,7 @@ async function* completeOpenAiStream(args: {
 		signal: args.signal ?? null,
 	});
 	if (!res.ok) {
-		throw new ProviderCompleteError(
-			`Provider responded ${res.status} ${res.statusText}`,
-			res.status,
-		);
+		throw await buildProviderError(res);
 	}
 	if (!res.body) {
 		throw new ProviderCompleteError("No response body");
@@ -247,10 +260,17 @@ async function* completeOpenAiStream(args: {
 			yield { type: "error", error: error.message };
 			return;
 		}
-		const choices = json.choices as Array<{ delta?: { content?: string } }> | undefined;
-		const delta = choices?.[0]?.delta?.content;
-		if (typeof delta === "string" && delta.length > 0) {
-			yield { type: "content", content: delta };
+		const choices = json.choices as
+			| Array<{ delta?: { content?: string; reasoning_content?: string } }>
+			| undefined;
+		const delta = choices?.[0]?.delta;
+		const content = delta?.content;
+		if (typeof content === "string" && content.length > 0) {
+			yield { type: "content", content };
+		}
+		const reasoning = delta?.reasoning_content;
+		if (typeof reasoning === "string" && reasoning.length > 0) {
+			yield { type: "content", content: reasoning };
 		}
 		const usage = json.usage as
 			| { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -299,10 +319,7 @@ async function* completeAnthropicStream(args: {
 		signal: args.signal ?? null,
 	});
 	if (!res.ok) {
-		throw new ProviderCompleteError(
-			`Provider responded ${res.status} ${res.statusText}`,
-			res.status,
-		);
+		throw await buildProviderError(res);
 	}
 	if (!res.body) {
 		throw new ProviderCompleteError("No response body");

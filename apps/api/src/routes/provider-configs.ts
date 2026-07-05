@@ -15,6 +15,7 @@ import {
 	providerConfigCreateSchema,
 	providerConfigTestSchema,
 	providerConfigUpdateSchema,
+	providerModelCreateSchema,
 	providerModelsUpdateSchema,
 	validateBody,
 } from "../lib/validation.js";
@@ -65,23 +66,54 @@ interface HealthCheckResult {
  * result. `healthy` = responded 2xx quickly; `degraded` = responded 2xx but
  * slowly; `unhealthy` = non-2xx, timeout, or network error. Shared by the
  * pre-save test, the saved-config test, and background post-save validation.
+ *
+ * When `/models` fails and a `defaultModel` is provided, falls back to a
+ * minimal `/chat/completions` request — needed for providers like Cloudflare
+ * Workers AI that don't expose a `/models` endpoint.
  */
 async function runHealthCheck(args: {
 	type: ProviderType;
 	baseUrl: string;
 	token: string;
+	defaultModel?: string | undefined;
 }): Promise<HealthCheckResult> {
 	const spec = PROVIDER_SPECS[args.type];
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 	const start = Date.now();
 	try {
-		const response = await fetch(`${args.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
+		const origin = args.baseUrl.replace(/\/$/, "");
+		const response = await fetch(`${origin}${spec.modelsPath}`, {
 			headers: spec.buildHeaders(args.token),
 			signal: controller.signal,
 		});
 		const latencyMs = Date.now() - start;
 		if (!response.ok) {
+			// Fallback: try a minimal streaming chat completion for providers
+			// without /models (e.g. Cloudflare Workers AI). Using stream:true
+			// avoids timeouts on reasoning models that hang on non-streaming.
+			if (args.defaultModel) {
+				const chatRes = await fetch(`${origin}/chat/completions`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json", ...spec.buildHeaders(args.token) },
+					body: JSON.stringify({
+						model: args.defaultModel,
+						messages: [{ role: "user", content: "hi" }],
+						max_tokens: 1,
+						stream: true,
+					}),
+					signal: controller.signal,
+				});
+				const chatLatencyMs = Date.now() - start;
+				if (chatRes.ok) {
+					return {
+						status: chatLatencyMs >= DEGRADED_LATENCY_THRESHOLD_MS ? "degraded" : "healthy",
+						latencyMs: chatLatencyMs,
+						message: "OK",
+						models: [],
+					};
+				}
+			}
 			return {
 				status: "unhealthy",
 				latencyMs,
@@ -160,61 +192,6 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
 /** Maps a stored provider-model row to the SDK catalog entry shape. */
 function toEntry(row: typeof providerModels.$inferSelect): ProviderModelEntry {
 	return { id: row.modelId, name: row.name, enabled: row.enabled === 1 };
-}
-
-/**
- * Fetches the live model list from the provider, upserts new models into the
- * catalog (with friendly display names), persists the health result, and
- * returns the full catalog. Existing models keep their enabled state; models no
- * longer returned by the provider are retained (not deleted).
- */
-async function syncProviderModels(
-	db: ReturnType<typeof createDb>,
-	env: Env,
-	config: typeof providerConfigs.$inferSelect,
-): Promise<ProviderModelEntry[]> {
-	const token = await decryptSecret(config.apiToken, env);
-	const check = await runHealthCheck({
-		type: config.type,
-		baseUrl: config.baseUrl,
-		token,
-	});
-	await persistHealth(db, config.id, config.userId, check);
-
-	const existing = await db
-		.select()
-		.from(providerModels)
-		.where(eq(providerModels.providerConfigId, config.id));
-	const existingIds = new Set(existing.map((m) => m.modelId));
-	const now = Date.now();
-
-	const toInsert = check.models
-		.filter((modelId) => !existingIds.has(modelId))
-		.map((modelId) => ({
-			id: crypto.randomUUID(),
-			providerConfigId: config.id,
-			modelId,
-			name: getModelDisplayName(modelId),
-			enabled: 1,
-			createdAt: now,
-			updatedAt: now,
-		}));
-	// Insert new models. Multi-row VALUES statements exceed D1's per-statement
-	// variable limit for large catalogs, so use single-row inserts grouped into
-	// batches (each statement binds only 7 variables).
-	const INSERT_BATCH = 50;
-	for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
-		const chunk = toInsert.slice(i, i + INSERT_BATCH);
-		const stmts = chunk.map((row) => db.insert(providerModels).values(row));
-		await db.batch(stmts as [(typeof stmts)[number], ...(typeof stmts)[number][]]);
-	}
-
-	const catalog = await db
-		.select()
-		.from(providerModels)
-		.where(eq(providerModels.providerConfigId, config.id))
-		.orderBy(asc(providerModels.name));
-	return catalog.map(toEntry);
 }
 
 app.get("/", async (c) => {
@@ -299,6 +276,7 @@ app.post("/", async (c) => {
 				type: created.type,
 				baseUrl: created.baseUrl,
 				token: plainToken,
+				defaultModel: created.defaultModel ?? undefined,
 			});
 			await persistHealth(bgDb, created.id, userId, result);
 		})(),
@@ -370,6 +348,7 @@ app.patch("/:id", async (c) => {
 					type: updated.type,
 					baseUrl: updated.baseUrl,
 					token,
+					defaultModel: updated.defaultModel ?? undefined,
 				});
 				await persistHealth(bgDb, id, userId, result);
 			})(),
@@ -417,6 +396,7 @@ app.post("/test", async (c) => {
 		type: data.type,
 		baseUrl: data.baseUrl,
 		token: data.apiToken ?? "",
+		defaultModel: data.defaultModel,
 	});
 
 	return c.json({
@@ -450,6 +430,7 @@ app.post("/:id/test", async (c) => {
 		type: config.type,
 		baseUrl: config.baseUrl,
 		token,
+		defaultModel: config.defaultModel ?? undefined,
 	});
 	await persistHealth(db, id, userId, check);
 
@@ -484,21 +465,17 @@ app.get("/:id/models", async (c) => {
 		.where(eq(providerModels.providerConfigId, id))
 		.orderBy(asc(providerModels.name));
 
-	// Lazy-populate: an empty catalog (never refreshed) is synced from the
-	// provider on first access so the chat selector works without a manual
-	// refresh. Subsequent reads are fast DB lookups.
-	if (rows.length === 0) {
-		const entries = await syncProviderModels(db, c.env, config);
-		return c.json({ models: entries });
-	}
-
 	return c.json({ models: rows.map(toEntry) });
 });
 
-/** Re-syncs the model catalog from the provider and returns the full list. */
-app.post("/:id/refresh-models", async (c) => {
+/** Manually adds a model to a provider's catalog. */
+app.post("/:id/models", async (c) => {
 	const userId = c.get("userId");
 	const id = c.req.param("id");
+	const result = await validateBody(c, providerModelCreateSchema);
+	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
+	const data = result.data;
+
 	const db = createDb(c.env.DB);
 
 	const [config] = await db
@@ -511,8 +488,57 @@ app.post("/:id/refresh-models", async (c) => {
 		return c.json({ error: "Provider config not found" }, 404);
 	}
 
-	const entries = await syncProviderModels(db, c.env, config);
-	return c.json({ models: entries });
+	const [existing] = await db
+		.select()
+		.from(providerModels)
+		.where(and(eq(providerModels.providerConfigId, id), eq(providerModels.modelId, data.modelId)))
+		.limit(1);
+
+	if (existing) {
+		return c.json({ error: "Model already exists in catalog" }, 409);
+	}
+
+	const now = Date.now();
+	await db.insert(providerModels).values({
+		id: crypto.randomUUID(),
+		providerConfigId: id,
+		modelId: data.modelId,
+		name: data.name ?? getModelDisplayName(data.modelId),
+		enabled: 1,
+		createdAt: now,
+		updatedAt: now,
+	});
+
+	const rows = await db
+		.select()
+		.from(providerModels)
+		.where(eq(providerModels.providerConfigId, id))
+		.orderBy(asc(providerModels.name));
+	return c.json({ models: rows.map(toEntry) }, 201);
+});
+
+/** Removes a model from a provider's catalog. */
+app.delete("/:id/models/:modelId", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const modelId = c.req.param("modelId");
+	const db = createDb(c.env.DB);
+
+	const [config] = await db
+		.select()
+		.from(providerConfigs)
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)))
+		.limit(1);
+
+	if (!config) {
+		return c.json({ error: "Provider config not found" }, 404);
+	}
+
+	await db
+		.delete(providerModels)
+		.where(and(eq(providerModels.providerConfigId, id), eq(providerModels.modelId, modelId)));
+
+	return c.body(null, 204);
 });
 
 /** Toggles enabled state on catalog models. Default model is set via PATCH /:id. */

@@ -37,6 +37,11 @@ export const providerModelsUpdateSchema = z.object({
 		.max(1000),
 });
 
+export const providerModelCreateSchema = z.object({
+	modelId: z.string().min(1).max(200),
+	name: z.string().max(200).optional(),
+});
+
 export const conversationCreateSchema = z.object({
 	title: z.string().min(1).max(200).optional(),
 	model: z.string().max(200).optional(),
@@ -62,12 +67,15 @@ export const messageCreateSchema = z.object({
 
 export const streamMessageSchema = z.object({
 	content: z.string().min(1).max(100_000),
+	model: z.string().max(200).optional(),
+	providerConfigId: z.string().max(200).optional(),
 });
 
 export type ProviderConfigCreate = z.infer<typeof providerConfigCreateSchema>;
 export type ProviderConfigUpdate = z.infer<typeof providerConfigUpdateSchema>;
 export type ProviderConfigTest = z.infer<typeof providerConfigTestSchema>;
 export type ProviderModelsUpdate = z.infer<typeof providerModelsUpdateSchema>;
+export type ProviderModelCreate = z.infer<typeof providerModelCreateSchema>;
 export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
 export type ConversationUpdate = z.infer<typeof conversationUpdateSchema>;
 export type MessageCreate = z.infer<typeof messageCreateSchema>;
