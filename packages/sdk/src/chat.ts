@@ -62,6 +62,7 @@ export interface ConversationSummary {
 	id: string;
 	title: string;
 	model?: string;
+	providerConfigId?: string;
 	pinned: boolean;
 	favorited: boolean;
 	updatedAt: number;
@@ -79,6 +80,7 @@ export interface ConversationInput {
 export interface ConversationUpdate {
 	title?: string;
 	model?: string;
+	providerConfigId?: string | null;
 	pinned?: boolean;
 	favorited?: boolean;
 }
@@ -106,3 +108,22 @@ export interface MessageInput {
 	tokensCompletion?: number;
 	tokensTotal?: number;
 }
+
+/** Input for the streaming message endpoint. */
+export interface StreamMessageInput {
+	content: string;
+}
+
+/** Token usage reported by the provider. */
+export interface TokenUsage {
+	promptTokens?: number;
+	completionTokens?: number;
+	totalTokens?: number;
+}
+
+/** SSE event emitted by the streaming message endpoint. */
+export type StreamChatEvent =
+	| { type: "meta"; messageId: string; model: string }
+	| { type: "delta"; content: string }
+	| { type: "done"; messageId: string; usage?: TokenUsage }
+	| { type: "error"; message: string };

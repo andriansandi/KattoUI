@@ -4,9 +4,10 @@ import { cn } from "~/lib/cn";
 interface MessageItemProps {
 	role: "user" | "assistant" | "system";
 	content: string;
+	streaming?: boolean;
 }
 
-export function MessageItem({ role, content }: MessageItemProps) {
+export function MessageItem({ role, content, streaming = false }: MessageItemProps) {
 	const reduceMotion = useReducedMotion();
 
 	if (role === "system") {
@@ -35,6 +36,9 @@ export function MessageItem({ role, content }: MessageItemProps) {
 				)}
 			>
 				{content}
+				{streaming && (
+					<span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-primary align-middle" />
+				)}
 			</div>
 		</motion.div>
 	);

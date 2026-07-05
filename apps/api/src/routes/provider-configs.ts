@@ -212,4 +212,52 @@ app.post("/test", async (c) => {
 	}
 });
 
+app.get("/:id/models", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const db = createDb(c.env.DB);
+
+	const [config] = await db
+		.select()
+		.from(providerConfigs)
+		.where(and(eq(providerConfigs.id, id), eq(providerConfigs.userId, userId)))
+		.limit(1);
+
+	if (!config) {
+		return c.json({ error: "Provider config not found" }, 404);
+	}
+
+	const spec = PROVIDER_SPECS[config.type];
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), 8000);
+
+	try {
+		const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
+			headers: spec.buildHeaders(config.apiToken),
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			return c.json({
+				models: [],
+				error: `Provider responded ${response.status} ${response.statusText}`,
+			});
+		}
+
+		const json = (await response.json()) as { data?: Array<{ id?: string }> };
+		const models = Array.isArray(json.data)
+			? json.data
+					.map((m) => m?.id)
+					.filter((modelId): modelId is string => typeof modelId === "string")
+			: [];
+
+		return c.json({ models });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ models: [], error: message });
+	} finally {
+		clearTimeout(timer);
+	}
+});
+
 export { app as providerConfigsRoute };

@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { requireAuth } from "./middleware/auth.js";
-import { chatRoute } from "./routes/chat.js";
 import { conversationsRoute } from "./routes/conversations.js";
 import { healthRoute } from "./routes/health.js";
 import { modelsRoute } from "./routes/models.js";
@@ -34,9 +33,6 @@ app.route("/conversations", conversationsRoute);
 
 app.use("/models", requireAuth);
 app.route("/models", modelsRoute);
-
-app.use("/chat", requireAuth);
-app.route("/chat", chatRoute);
 
 app.get("/", (c) => {
 	return c.json({
