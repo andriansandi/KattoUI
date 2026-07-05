@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
 import { conversations, messages } from "../../db/schema.js";
+import { decryptSecret } from "../lib/crypto.js";
 import { completeChat, completeChatStream } from "../lib/provider-complete.js";
 import { resolveProviderConfig } from "../lib/provider-resolve.js";
 import {
@@ -405,7 +406,7 @@ app.post("/:id/generate-title", async (c) => {
 		const raw = await completeChat({
 			type: config.type,
 			baseUrl: config.baseUrl,
-			apiToken: config.apiToken,
+			apiToken: await decryptSecret(config.apiToken, c.env),
 			model,
 			systemPrompt:
 				"Generate a concise title (at most 6 words) for this conversation. Reply with the title only — no quotes, no trailing punctuation.",
@@ -520,7 +521,7 @@ app.post("/:id/messages/stream", async (c) => {
 			for await (const chunk of completeChatStream({
 				type: config.type,
 				baseUrl: config.baseUrl,
-				apiToken: config.apiToken,
+				apiToken: await decryptSecret(config.apiToken, c.env),
 				model,
 				messages: chatMessages,
 				signal: upstreamController.signal,

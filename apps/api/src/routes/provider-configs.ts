@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb } from "../../db/index.js";
 import { conversations, providerConfigs } from "../../db/schema.js";
+import { decryptSecret, encryptSecret } from "../lib/crypto.js";
 import {
 	providerConfigCreateSchema,
 	providerConfigTestSchema,
@@ -85,7 +86,7 @@ app.post("/", async (c) => {
 			name: data.name,
 			type: data.type,
 			baseUrl: data.baseUrl,
-			apiToken: data.apiToken ?? "",
+			apiToken: await encryptSecret(data.apiToken ?? "", c.env),
 			defaultModel: data.defaultModel || null,
 			createdAt: now,
 			updatedAt: now,
@@ -120,6 +121,13 @@ app.patch("/:id", async (c) => {
 	}
 
 	const now = Date.now();
+	// An empty/omitted token means "keep existing" — never overwrite with "".
+	// A non-empty token is encrypted before storage.
+	const encryptedToken =
+		data.apiToken !== undefined && data.apiToken !== ""
+			? await encryptSecret(data.apiToken, c.env)
+			: undefined;
+
 	const [updated] = await db
 		.update(providerConfigs)
 		.set({
@@ -127,11 +135,7 @@ app.patch("/:id", async (c) => {
 			...(data.name !== undefined && { name: data.name }),
 			...(data.type !== undefined && { type: data.type }),
 			...(data.baseUrl !== undefined && { baseUrl: data.baseUrl }),
-			// An empty/omitted token means "keep existing" — never overwrite with "".
-			...(data.apiToken !== undefined &&
-				data.apiToken !== "" && {
-					apiToken: data.apiToken,
-				}),
+			...(encryptedToken !== undefined && { apiToken: encryptedToken }),
 			...(data.defaultModel !== undefined && {
 				defaultModel: data.defaultModel || null,
 			}),
@@ -232,8 +236,9 @@ app.get("/:id/models", async (c) => {
 	const timer = setTimeout(() => controller.abort(), 8000);
 
 	try {
+		const token = await decryptSecret(config.apiToken, c.env);
 		const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}${spec.modelsPath}`, {
-			headers: spec.buildHeaders(config.apiToken),
+			headers: spec.buildHeaders(token),
 			signal: controller.signal,
 		});
 
