@@ -65,11 +65,23 @@ export const messageCreateSchema = z.object({
 	tokensTotal: z.number().int().nonnegative().optional(),
 });
 
-export const streamMessageSchema = z.object({
+export const messageUpdateSchema = z.object({
 	content: z.string().min(1).max(100_000),
-	model: z.string().max(200).optional(),
-	providerConfigId: z.string().max(200).optional(),
 });
+
+export const streamMessageSchema = z
+	.object({
+		content: z.string().max(100_000).optional(),
+		model: z.string().max(200).optional(),
+		providerConfigId: z.string().max(200).optional(),
+		regenerate: z.boolean().optional(),
+	})
+	.refine(
+		(data) => data.regenerate === true || (data.content !== undefined && data.content.length > 0),
+		{
+			message: "Content is required when not regenerating",
+		},
+	);
 
 export type ProviderConfigCreate = z.infer<typeof providerConfigCreateSchema>;
 export type ProviderConfigUpdate = z.infer<typeof providerConfigUpdateSchema>;
@@ -79,6 +91,7 @@ export type ProviderModelCreate = z.infer<typeof providerModelCreateSchema>;
 export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
 export type ConversationUpdate = z.infer<typeof conversationUpdateSchema>;
 export type MessageCreate = z.infer<typeof messageCreateSchema>;
+export type MessageUpdate = z.infer<typeof messageUpdateSchema>;
 export type StreamMessage = z.infer<typeof streamMessageSchema>;
 
 export interface ValidationOk<T> {

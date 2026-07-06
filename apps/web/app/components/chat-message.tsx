@@ -1,14 +1,38 @@
+import { Check, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useState } from "react";
+import { CopyButton } from "~/components/copy-button";
+import { Markdown } from "~/components/markdown";
+import { Button } from "~/components/ui/button";
+import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/cn";
 
-interface MessageItemProps {
+export interface MessageItemProps {
 	role: "user" | "assistant" | "system";
 	content: string;
 	streaming?: boolean;
+	tokensPrompt?: number | undefined;
+	tokensCompletion?: number | undefined;
+	tokensTotal?: number | undefined;
+	onEdit?: ((content: string) => void) | undefined;
+	onRegenerate?: (() => void) | undefined;
+	canRegenerate?: boolean;
 }
 
-export function MessageItem({ role, content, streaming = false }: MessageItemProps) {
+export function MessageItem({
+	role,
+	content,
+	streaming = false,
+	tokensPrompt,
+	tokensCompletion,
+	tokensTotal,
+	onEdit,
+	onRegenerate,
+	canRegenerate = false,
+}: MessageItemProps) {
 	const reduceMotion = useReducedMotion();
+	const [isEditing, setIsEditing] = useState(false);
+	const [editValue, setEditValue] = useState(content);
 
 	if (role === "system") {
 		return (
@@ -19,13 +43,27 @@ export function MessageItem({ role, content, streaming = false }: MessageItemPro
 	}
 
 	const isUser = role === "user";
+	const hasUsage = tokensTotal !== undefined && !streaming;
+
+	function handleSaveEdit() {
+		const trimmed = editValue.trim();
+		if (trimmed && trimmed !== content) {
+			onEdit?.(trimmed);
+		}
+		setIsEditing(false);
+	}
+
+	function handleCancelEdit() {
+		setEditValue(content);
+		setIsEditing(false);
+	}
 
 	return (
 		<motion.div
 			initial={reduceMotion ? false : { opacity: 0, y: 8 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.22, ease: "easeOut" }}
-			className={cn("flex", isUser ? "justify-end" : "justify-start")}
+			className={cn("group flex flex-col", isUser ? "items-end" : "items-start")}
 		>
 			<div
 				className={cn(
@@ -35,11 +73,80 @@ export function MessageItem({ role, content, streaming = false }: MessageItemPro
 						: "rounded-bl-md bg-muted/40 text-foreground",
 				)}
 			>
-				{content}
-				{streaming && (
-					<span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-primary align-middle" />
+				{isEditing ? (
+					<div className="flex flex-col gap-2">
+						<Textarea
+							value={editValue}
+							onChange={(e) => setEditValue(e.target.value)}
+							className="min-h-[80px] resize-none border-0 bg-background/50 text-foreground"
+							autoFocus
+						/>
+						<div className="flex justify-end gap-1">
+							<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}>
+								<X className="h-3.5 w-3.5" />
+								<span className="sr-only">Cancel edit</span>
+							</Button>
+							<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveEdit}>
+								<Check className="h-3.5 w-3.5" />
+								<span className="sr-only">Save edit</span>
+							</Button>
+						</div>
+					</div>
+				) : (
+					<>
+						{isUser ? (
+							content
+						) : streaming && !content ? (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<Sparkles className="h-4 w-4 animate-pulse text-primary" />
+								<span>Thinking...</span>
+							</div>
+						) : (
+							<Markdown content={content} streaming={streaming} />
+						)}
+						{streaming && content && (
+							<span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-primary align-middle" />
+						)}
+						{!isUser && !streaming && (
+							<div className="mt-2 flex items-center gap-3 border-t border-border/50 pt-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+								<CopyButton getText={() => content} />
+								{hasUsage && (
+									<span className="text-xs text-muted-foreground">
+										{tokensPrompt !== undefined && `↑ ${tokensPrompt}`}
+										{tokensPrompt !== undefined && tokensCompletion !== undefined && " "}
+										{tokensCompletion !== undefined && `↓ ${tokensCompletion}`}
+									</span>
+								)}
+								{canRegenerate && onRegenerate && (
+									<button
+										type="button"
+										onClick={onRegenerate}
+										className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+										aria-label="Regenerate response"
+									>
+										<RefreshCw className="h-3 w-3" />
+										<span>Retry</span>
+									</button>
+								)}
+							</div>
+						)}
+					</>
 				)}
 			</div>
+			{isUser && !streaming && onEdit && !isEditing && (
+				<Button
+					variant="ghost"
+					size="icon"
+					className="mt-0.5 h-6 w-6 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+					onClick={() => {
+						setEditValue(content);
+						setIsEditing(true);
+					}}
+				>
+					<Pencil className="h-3 w-3" />
+					<span className="sr-only">Edit message</span>
+				</Button>
+			)}
 		</motion.div>
 	);
 }

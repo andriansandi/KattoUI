@@ -131,9 +131,17 @@ export interface MessageInput {
 	tokensTotal?: number;
 }
 
+/** Input for updating a message. */
+export interface MessageUpdate {
+	content: string;
+}
+
 /** Input for the streaming message endpoint. */
 export interface StreamMessageInput {
 	content: string;
+	model?: string | undefined;
+	providerConfigId?: string | undefined;
+	regenerate?: boolean | undefined;
 }
 
 /** Token usage reported by the provider. */

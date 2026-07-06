@@ -17,6 +17,7 @@ import {
 	conversationCreateSchema,
 	conversationUpdateSchema,
 	messageCreateSchema,
+	messageUpdateSchema,
 	streamMessageSchema,
 	validateBody,
 } from "../lib/validation.js";
@@ -361,6 +362,60 @@ app.post("/:id/messages", async (c) => {
 	return c.json(toMessage(created), 201);
 });
 
+app.patch("/:id/messages/:messageId", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const messageId = c.req.param("messageId");
+	const result = await validateBody(c, messageUpdateSchema);
+	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
+	const { content } = result.data;
+
+	const db = createDb(c.env.DB);
+
+	const [conv] = await db
+		.select({ id: conversations.id })
+		.from(conversations)
+		.where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+		.limit(1);
+
+	if (!conv) {
+		return c.json({ error: "Conversation not found" }, 404);
+	}
+
+	const [updated] = await db
+		.update(messages)
+		.set({ content })
+		.where(and(eq(messages.id, messageId), eq(messages.conversationId, id)))
+		.returning();
+
+	if (!updated) {
+		return c.json({ error: "Message not found" }, 404);
+	}
+
+	return c.json(toMessage(updated), 200);
+});
+
+app.delete("/:id/messages/:messageId", async (c) => {
+	const userId = c.get("userId");
+	const id = c.req.param("id");
+	const messageId = c.req.param("messageId");
+	const db = createDb(c.env.DB);
+
+	const [conv] = await db
+		.select({ id: conversations.id })
+		.from(conversations)
+		.where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+		.limit(1);
+
+	if (!conv) {
+		return c.json({ error: "Conversation not found" }, 404);
+	}
+
+	await db.delete(messages).where(and(eq(messages.id, messageId), eq(messages.conversationId, id)));
+
+	return c.body(null, 204);
+});
+
 app.post("/:id/generate-title", async (c) => {
 	const userId = c.get("userId");
 	const id = c.req.param("id");
@@ -438,7 +493,12 @@ app.post("/:id/messages/stream", async (c) => {
 	const id = c.req.param("id");
 	const result = await validateBody(c, streamMessageSchema);
 	if (!result.ok) return c.json({ error: result.message, issues: result.issues }, 400);
-	const { content, model: reqModel, providerConfigId: reqProviderConfigId } = result.data;
+	const {
+		content,
+		model: reqModel,
+		providerConfigId: reqProviderConfigId,
+		regenerate,
+	} = result.data;
 
 	const db = createDb(c.env.DB);
 
@@ -466,32 +526,34 @@ app.post("/:id/messages/stream", async (c) => {
 	const now = Date.now();
 	const assistantMessageId = crypto.randomUUID();
 
-	await db.insert(messages).values({
-		id: crypto.randomUUID(),
-		conversationId: id,
-		role: "user",
-		content,
-		createdAt: now,
-	});
+	if (!regenerate) {
+		await db.insert(messages).values({
+			id: crypto.randomUUID(),
+			conversationId: id,
+			role: "user",
+			content: content ?? "",
+			createdAt: now,
+		});
 
-	let autoTitle: string | undefined;
-	if (conv.title === DEFAULT_TITLE) {
-		const [countRow] = await db
-			.select({ n: count() })
-			.from(messages)
-			.where(and(eq(messages.conversationId, id), eq(messages.role, "user")));
-		if ((countRow?.n ?? 0) === 1) {
-			autoTitle = truncate(content, AUTO_TITLE_LIMIT);
+		let autoTitle: string | undefined;
+		if (conv.title === DEFAULT_TITLE) {
+			const [countRow] = await db
+				.select({ n: count() })
+				.from(messages)
+				.where(and(eq(messages.conversationId, id), eq(messages.role, "user")));
+			if ((countRow?.n ?? 0) === 1) {
+				autoTitle = truncate(content ?? "", AUTO_TITLE_LIMIT);
+			}
 		}
-	}
 
-	await db
-		.update(conversations)
-		.set({
-			updatedAt: now,
-			...(autoTitle !== undefined && { title: autoTitle }),
-		})
-		.where(eq(conversations.id, id));
+		await db
+			.update(conversations)
+			.set({
+				updatedAt: now,
+				...(autoTitle !== undefined && { title: autoTitle }),
+			})
+			.where(eq(conversations.id, id));
+	}
 
 	const allMessages = await db
 		.select()
