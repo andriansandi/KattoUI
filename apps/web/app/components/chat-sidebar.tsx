@@ -1,12 +1,21 @@
 import { UserButton } from "@clerk/clerk-react";
 import type { ConversationSummary } from "@katto/sdk";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Check, MessageSquarePlus, Pencil, Search, Settings, Trash2, X } from "lucide-react";
+import {
+	MessageSquarePlus,
+	MoreHorizontal,
+	Pencil,
+	Pin,
+	Search,
+	Settings,
+	Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ClientOnly } from "~/components/client-only";
 import { KattoLogo } from "~/components/logo";
 import { Avatar } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
+import { Dialog } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/cn";
@@ -46,7 +55,7 @@ function ChatSidebarContent() {
 	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 
 	const [search, setSearch] = useState("");
-	const [editingId, setEditingId] = useState<string | null>(null);
+	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState("");
 	const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
@@ -56,9 +65,16 @@ function ChatSidebarContent() {
 	const deleteMutation = useDeleteConversation();
 
 	const conversations = data?.conversations ?? [];
-	const filtered = search.trim()
-		? conversations.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
-		: conversations;
+	const filtered = (
+		search.trim()
+			? conversations.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+			: conversations
+	)
+		.slice()
+		.sort((a, b) => {
+			if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+			return 0;
+		});
 
 	function handleNewChat() {
 		createMutation.mutate(
@@ -72,19 +88,19 @@ function ChatSidebarContent() {
 		);
 	}
 
-	function startEdit(c: ConversationSummary) {
-		setEditingId(c.id);
+	function startRename(c: ConversationSummary) {
+		setRenamingId(c.id);
 		setEditValue(c.title);
 		setConfirmingDeleteId(null);
 	}
 
-	function saveEdit(id: string) {
+	function saveRename(id: string) {
 		const trimmed = editValue.trim();
 		const current = conversations.find((c) => c.id === id);
 		if (trimmed && trimmed !== current?.title) {
 			updateMutation.mutate({ id, title: trimmed });
 		}
-		setEditingId(null);
+		setRenamingId(null);
 	}
 
 	function confirmDelete(id: string) {
@@ -152,16 +168,9 @@ function ChatSidebarContent() {
 								key={c.id}
 								conversation={c}
 								isActive={c.id === activeId}
-								isEditing={editingId === c.id}
-								isConfirmingDelete={confirmingDeleteId === c.id}
-								editValue={editValue}
-								onEditValueChange={setEditValue}
-								onStartEdit={() => startEdit(c)}
-								onSaveEdit={() => saveEdit(c.id)}
-								onCancelEdit={() => setEditingId(null)}
+								onTogglePin={() => updateMutation.mutate({ id: c.id, pinned: !c.pinned })}
+								onStartRename={() => startRename(c)}
 								onRequestDelete={() => setConfirmingDeleteId(c.id)}
-								onConfirmDelete={() => confirmDelete(c.id)}
-								onCancelDelete={() => setConfirmingDeleteId(null)}
 								onNavigate={() => setMobileSidebarOpen(false)}
 							/>
 						))}
@@ -182,6 +191,19 @@ function ChatSidebarContent() {
 					<UserButton afterSignOutUrl="/" />
 				</ClientOnly>
 			</div>
+
+			<RenameConversationDialog
+				open={renamingId !== null}
+				editValue={editValue}
+				onEditValueChange={setEditValue}
+				onSave={() => renamingId && saveRename(renamingId)}
+				onCancel={() => setRenamingId(null)}
+			/>
+			<DeleteConversationDialog
+				open={confirmingDeleteId !== null}
+				onConfirm={() => confirmingDeleteId && confirmDelete(confirmingDeleteId)}
+				onCancel={() => setConfirmingDeleteId(null)}
+			/>
 		</aside>
 	);
 }
@@ -189,81 +211,33 @@ function ChatSidebarContent() {
 interface ConversationItemProps {
 	conversation: ConversationSummary;
 	isActive: boolean;
-	isEditing: boolean;
-	isConfirmingDelete: boolean;
-	editValue: string;
-	onEditValueChange: (value: string) => void;
-	onStartEdit: () => void;
-	onSaveEdit: () => void;
-	onCancelEdit: () => void;
+	onTogglePin: () => void;
+	onStartRename: () => void;
 	onRequestDelete: () => void;
-	onConfirmDelete: () => void;
-	onCancelDelete: () => void;
 	onNavigate: () => void;
 }
 
 function ConversationItem({
 	conversation,
 	isActive,
-	isEditing,
-	isConfirmingDelete,
-	editValue,
-	onEditValueChange,
-	onStartEdit,
-	onSaveEdit,
-	onCancelEdit,
+	onTogglePin,
+	onStartRename,
 	onRequestDelete,
-	onConfirmDelete,
-	onCancelDelete,
 	onNavigate,
 }: ConversationItemProps) {
-	const inputRef = useRef<HTMLInputElement>(null);
+	const [menuOpen, setMenuOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (isEditing) {
-			inputRef.current?.focus();
-			inputRef.current?.select();
+		if (!menuOpen) return;
+		function handleClickOutside(e: MouseEvent) {
+			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+				setMenuOpen(false);
+			}
 		}
-	}, [isEditing]);
-
-	function handleKeyDown(e: React.KeyboardEvent) {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			onSaveEdit();
-		} else if (e.key === "Escape") {
-			e.preventDefault();
-			onCancelEdit();
-		}
-	}
-
-	if (isConfirmingDelete) {
-		return (
-			<div className="flex items-center gap-1 rounded-lg bg-destructive/10 px-2 py-2">
-				<span className="flex-1 truncate text-xs text-destructive">Delete?</span>
-				<Button variant="destructive" size="icon" className="h-6 w-6" onClick={onConfirmDelete}>
-					<Check className="h-3 w-3" />
-				</Button>
-				<Button variant="ghost" size="icon" className="h-6 w-6" onClick={onCancelDelete}>
-					<X className="h-3 w-3" />
-				</Button>
-			</div>
-		);
-	}
-
-	if (isEditing) {
-		return (
-			<div className="rounded-lg bg-accent px-2 py-1.5">
-				<input
-					ref={inputRef}
-					value={editValue}
-					onChange={(e) => onEditValueChange(e.target.value)}
-					onKeyDown={handleKeyDown}
-					onBlur={onSaveEdit}
-					className="w-full rounded border bg-background px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-				/>
-			</div>
-		);
-	}
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [menuOpen]);
 
 	return (
 		<div
@@ -275,14 +249,17 @@ function ConversationItem({
 			<Link
 				to="/chat/$conversationId"
 				params={{ conversationId: conversation.id }}
-				className="min-w-0 flex-1 px-3 py-2"
+				className="min-w-0 flex-1 px-3 py-2 pr-8"
 				onClick={onNavigate}
 				onDoubleClick={(e) => {
 					e.preventDefault();
-					onStartEdit();
+					onStartRename();
 				}}
 			>
-				<p className="truncate text-sm font-medium">{conversation.title}</p>
+				<p className="flex items-center gap-1 truncate text-sm font-medium">
+					{conversation.pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
+					<span className="truncate">{conversation.title}</span>
+				</p>
 				{conversation.preview?.firstUser ? (
 					<p className="truncate text-xs text-muted-foreground">
 						<span className="text-foreground/70">You:</span>{" "}
@@ -299,34 +276,148 @@ function ConversationItem({
 					</p>
 				) : null}
 			</Link>
-			<div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover:flex">
-				<Button
-					variant="ghost"
-					size="icon"
-					className="h-6 w-6"
-					onClick={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						onStartEdit();
-					}}
-				>
-					<Pencil className="h-3 w-3" />
-					<span className="sr-only">Rename</span>
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="h-6 w-6 text-muted-foreground hover:text-destructive"
-					onClick={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						onRequestDelete();
-					}}
-				>
-					<Trash2 className="h-3 w-3" />
-					<span className="sr-only">Delete</span>
-				</Button>
+			<div className={cn("absolute right-1 top-1", menuOpen ? "flex" : "hidden group-hover:flex")}>
+				<div ref={menuRef} className="relative">
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-6 w-6"
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							setMenuOpen((v) => !v);
+						}}
+					>
+						<MoreHorizontal className="h-3 w-3" />
+						<span className="sr-only">More actions</span>
+					</Button>
+					{menuOpen && (
+						<div className="absolute right-0 top-full z-50 mt-1 min-w-[140px] rounded-lg border bg-popover py-1 shadow-md">
+							<button
+								type="button"
+								className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent"
+								onClick={() => {
+									setMenuOpen(false);
+									onTogglePin();
+								}}
+							>
+								<Pin
+									className={cn("h-3 w-3", conversation.pinned && "fill-current text-primary")}
+								/>
+								{conversation.pinned ? "Unpin" : "Pin"}
+							</button>
+							<button
+								type="button"
+								className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent"
+								onClick={() => {
+									setMenuOpen(false);
+									onStartRename();
+								}}
+							>
+								<Pencil className="h-3 w-3" />
+								Rename
+							</button>
+							<button
+								type="button"
+								className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-destructive transition-colors hover:bg-accent"
+								onClick={() => {
+									setMenuOpen(false);
+									onRequestDelete();
+								}}
+							>
+								<Trash2 className="h-3 w-3" />
+								Delete
+							</button>
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
+	);
+}
+
+interface RenameConversationDialogProps {
+	open: boolean;
+	editValue: string;
+	onEditValueChange: (value: string) => void;
+	onSave: () => void;
+	onCancel: () => void;
+}
+
+function RenameConversationDialog({
+	open,
+	editValue,
+	onEditValueChange,
+	onSave,
+	onCancel,
+}: RenameConversationDialogProps) {
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (open) {
+			inputRef.current?.focus();
+			inputRef.current?.select();
+		}
+	}, [open]);
+
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(o) => {
+				if (!o) onCancel();
+			}}
+			title="Rename conversation"
+			footer={
+				<>
+					<Button variant="ghost" size="sm" onClick={onCancel}>
+						Cancel
+					</Button>
+					<Button size="sm" onClick={onSave}>
+						Save
+					</Button>
+				</>
+			}
+		>
+			<Input
+				ref={inputRef}
+				value={editValue}
+				onChange={(e) => onEditValueChange(e.target.value)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") {
+						e.preventDefault();
+						onSave();
+					}
+				}}
+			/>
+		</Dialog>
+	);
+}
+
+interface DeleteConversationDialogProps {
+	open: boolean;
+	onConfirm: () => void;
+	onCancel: () => void;
+}
+
+function DeleteConversationDialog({ open, onConfirm, onCancel }: DeleteConversationDialogProps) {
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(o) => {
+				if (!o) onCancel();
+			}}
+			title="Delete conversation?"
+			description="This will permanently delete the conversation and all its messages. This cannot be undone."
+			footer={
+				<>
+					<Button variant="ghost" size="sm" onClick={onCancel}>
+						Cancel
+					</Button>
+					<Button variant="destructive" size="sm" onClick={onConfirm}>
+						Delete
+					</Button>
+				</>
+			}
+		/>
 	);
 }

@@ -9,7 +9,27 @@ export function CommandPalette() {
 	const open = useUIStore((state) => state.commandPaletteOpen);
 	const setOpen = useUIStore((state) => state.setCommandPaletteOpen);
 	const [query, setQuery] = useState("");
+	const [activeIndex, setActiveIndex] = useState(0);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
+
+	const filtered = useMemo(() => {
+		const q = query.trim().toLowerCase();
+		if (!q) return coreCommands;
+		return coreCommands.filter(
+			(cmd) =>
+				cmd.label.toLowerCase().includes(q) ||
+				cmd.keywords?.some((k) => k.toLowerCase().includes(q)),
+		);
+	}, [query]);
+
+	useEffect(() => {
+		if (open) {
+			inputRef.current?.focus();
+			setQuery("");
+			setActiveIndex(0);
+		}
+	}, [open]);
 
 	useEffect(() => {
 		function handleKeyDown(event: KeyboardEvent) {
@@ -25,34 +45,52 @@ export function CommandPalette() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [open, setOpen]);
 
-	useEffect(() => {
-		if (open) {
-			inputRef.current?.focus();
-			setQuery("");
-		}
-	}, [open]);
+	function executeCommand(index: number) {
+		const cmd = filtered[index];
+		if (!cmd) return;
+		cmd.execute({
+			closePalette: () => setOpen(false),
+			flags: {},
+		});
+	}
 
-	const filtered = useMemo(() => {
-		const q = query.trim().toLowerCase();
-		if (!q) return coreCommands;
-		return coreCommands.filter(
-			(cmd) =>
-				cmd.label.toLowerCase().includes(q) ||
-				cmd.keywords?.some((k) => k.toLowerCase().includes(q)),
-		);
-	}, [query]);
+	function handleListKeyDown(event: React.KeyboardEvent) {
+		if (event.key === "ArrowDown") {
+			event.preventDefault();
+			setActiveIndex((prev) => (prev + 1) % filtered.length);
+		} else if (event.key === "ArrowUp") {
+			event.preventDefault();
+			setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+		} else if (event.key === "Enter") {
+			event.preventDefault();
+			executeCommand(activeIndex);
+		}
+	}
+
+	useEffect(() => {
+		const list = listRef.current;
+		if (!list) return;
+		const activeEl = list.children[activeIndex] as HTMLElement | undefined;
+		activeEl?.scrollIntoView({ block: "nearest" });
+	}, [activeIndex]);
 
 	if (!open) return null;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[20vh]">
-			<div className="w-full max-w-xl overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-2xl">
+			<div
+				className="w-full max-w-xl overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-2xl"
+				onKeyDown={handleListKeyDown}
+			>
 				<div className="flex items-center border-b px-4 py-3">
 					<Search className="mr-3 h-5 w-5 text-muted-foreground" />
 					<Input
 						ref={inputRef}
 						value={query}
-						onChange={(e) => setQuery(e.target.value)}
+						onChange={(e) => {
+							setQuery(e.target.value);
+							setActiveIndex(0);
+						}}
 						placeholder="Type a command or search..."
 						className="border-0 bg-transparent text-base shadow-none focus-visible:ring-0"
 					/>
@@ -60,7 +98,7 @@ export function CommandPalette() {
 						ESC
 					</span>
 				</div>
-				<div className="max-h-[50vh] overflow-y-auto p-2">
+				<div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
 					{filtered.length === 0 && (
 						<div className="px-4 py-6 text-center text-sm text-muted-foreground">
 							No commands found.
@@ -74,14 +112,10 @@ export function CommandPalette() {
 								type="button"
 								className={cn(
 									"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-									index === 0 && "bg-accent/50",
+									index === activeIndex && "bg-accent text-accent-foreground",
 								)}
-								onClick={() => {
-									cmd.execute({
-										closePalette: () => setOpen(false),
-										flags: {},
-									});
-								}}
+								onClick={() => executeCommand(index)}
+								onMouseEnter={() => setActiveIndex(index)}
 							>
 								{Icon ? <Icon className="h-4 w-4" /> : null}
 								<span className="flex-1">{cmd.label}</span>
