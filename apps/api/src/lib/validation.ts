@@ -13,6 +13,7 @@ export const providerConfigCreateSchema = z.object({
 	baseUrl: z.string().min(1).max(500),
 	apiToken: z.string().max(1000).optional(),
 	defaultModel: z.string().max(200).optional(),
+	streaming: z.boolean().optional(),
 });
 
 export const providerConfigUpdateSchema = z.object({
@@ -21,6 +22,7 @@ export const providerConfigUpdateSchema = z.object({
 	baseUrl: z.string().min(1).max(500).optional(),
 	apiToken: z.string().max(1000).optional(),
 	defaultModel: z.string().max(200).optional(),
+	streaming: z.boolean().optional(),
 });
 
 export const providerConfigTestSchema = z.object({
@@ -32,7 +34,13 @@ export const providerConfigTestSchema = z.object({
 
 export const providerModelsUpdateSchema = z.object({
 	models: z
-		.array(z.object({ id: z.string().min(1).max(200), enabled: z.boolean() }))
+		.array(
+			z.object({
+				id: z.string().min(1).max(200),
+				enabled: z.boolean(),
+				reasoning: z.boolean().optional(),
+			}),
+		)
 		.min(1)
 		.max(1000),
 });

@@ -9,6 +9,7 @@ export interface ProviderModelEntry {
 	id: string;
 	name: string;
 	enabled: boolean;
+	reasoning?: boolean;
 }
 
 /** Enabled models grouped by provider config, for the chat model selector. */
@@ -26,6 +27,7 @@ export interface ProviderConfig {
 	type: ProviderType;
 	baseUrl: string;
 	defaultModel?: string;
+	streaming?: boolean;
 	isConfigured: boolean;
 	/** Last connection-test result. Absent when the provider has never been tested. */
 	status?: ProviderStatus;
@@ -43,6 +45,7 @@ export interface ProviderConfigInput {
 	baseUrl: string;
 	apiToken: string;
 	defaultModel?: string;
+	streaming?: boolean;
 }
 
 /** Input for updating a provider config. */
@@ -52,6 +55,7 @@ export interface ProviderConfigUpdate {
 	baseUrl?: string;
 	apiToken?: string;
 	defaultModel?: string;
+	streaming?: boolean;
 }
 
 /** A conversation stored in the database. */
@@ -114,6 +118,7 @@ export interface StoredMessage {
 	role: "system" | "user" | "assistant";
 	content: string;
 	model?: string;
+	reasoning?: string;
 	tokensPrompt?: number;
 	tokensCompletion?: number;
 	tokensTotal?: number;
@@ -126,6 +131,7 @@ export interface MessageInput {
 	role: "system" | "user" | "assistant";
 	content: string;
 	model?: string;
+	reasoning?: string;
 	tokensPrompt?: number;
 	tokensCompletion?: number;
 	tokensTotal?: number;
@@ -155,5 +161,6 @@ export interface TokenUsage {
 export type StreamChatEvent =
 	| { type: "meta"; messageId: string; model: string }
 	| { type: "delta"; content: string }
+	| { type: "reasoning"; content: string }
 	| { type: "done"; messageId: string; usage?: TokenUsage }
 	| { type: "error"; message: string };

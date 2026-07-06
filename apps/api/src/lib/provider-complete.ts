@@ -17,6 +17,11 @@ export interface CompleteChatParams {
 	signal?: AbortSignal;
 }
 
+export interface CompletionResult {
+	content: string;
+	reasoning?: string;
+}
+
 export class ProviderCompleteError extends Error {
 	constructor(
 		message: string,
@@ -48,7 +53,7 @@ async function buildProviderError(res: Response): Promise<ProviderCompleteError>
  * custom providers share the `/chat/completions` shape; Anthropic uses
  * `/messages` with the system prompt carried in a top-level `system` field.
  */
-export async function completeChat(params: CompleteChatParams): Promise<string> {
+export async function completeChat(params: CompleteChatParams): Promise<CompletionResult> {
 	const origin = params.baseUrl.replace(/\/$/, "");
 	if (params.type === "anthropic") {
 		return completeAnthropic({
@@ -80,7 +85,7 @@ async function completeOpenAi(args: {
 	messages: ChatMessage[];
 	maxTokens?: number | undefined;
 	signal?: AbortSignal | undefined;
-}): Promise<string> {
+}): Promise<CompletionResult> {
 	const messages: Array<{ role: string; content: string }> = [...args.messages];
 	if (args.systemPrompt) {
 		messages.unshift({ role: "system", content: args.systemPrompt });
@@ -110,13 +115,18 @@ async function completeOpenAi(args: {
 	}
 
 	const json = (await res.json()) as {
-		choices?: Array<{ message?: { content?: string } }>;
+		choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
 	};
-	const content = json.choices?.[0]?.message?.content;
+	const message = json.choices?.[0]?.message;
+	const content = message?.content;
 	if (typeof content !== "string" || content.length === 0) {
 		throw new ProviderCompleteError("Empty completion content");
 	}
-	return content;
+	const result: CompletionResult = { content };
+	if (typeof message?.reasoning_content === "string" && message.reasoning_content.length > 0) {
+		result.reasoning = message.reasoning_content;
+	}
+	return result;
 }
 
 async function completeAnthropic(args: {
@@ -127,7 +137,7 @@ async function completeAnthropic(args: {
 	messages: ChatMessage[];
 	maxTokens?: number | undefined;
 	signal?: AbortSignal | undefined;
-}): Promise<string> {
+}): Promise<CompletionResult> {
 	const body: Record<string, unknown> = {
 		model: args.model,
 		messages: args.messages,
@@ -159,13 +169,22 @@ async function completeAnthropic(args: {
 	}
 
 	const json = (await res.json()) as {
-		content?: Array<{ type?: string; text?: string }>;
+		content?: Array<{ type?: string; text?: string; thinking?: string }>;
 	};
-	const text = json.content?.find((block) => block.type === "text")?.text;
+	const blocks = json.content ?? [];
+	const textBlock = blocks.find((block) => block.type === "text");
+	const text = textBlock?.text;
 	if (typeof text !== "string" || text.length === 0) {
 		throw new ProviderCompleteError("Empty completion content");
 	}
-	return text;
+	const result: CompletionResult = { content: text };
+	const thinkingParts = blocks
+		.filter((block) => block.type === "thinking" && typeof block.thinking === "string")
+		.map((block) => block.thinking as string);
+	if (thinkingParts.length > 0) {
+		result.reasoning = thinkingParts.join("");
+	}
+	return result;
 }
 
 /* ---------------------------------------------------------------------------
@@ -270,7 +289,7 @@ async function* completeOpenAiStream(args: {
 		}
 		const reasoning = delta?.reasoning_content;
 		if (typeof reasoning === "string" && reasoning.length > 0) {
-			yield { type: "content", content: reasoning };
+			yield { type: "reasoning", content: reasoning };
 		}
 		const usage = json.usage as
 			| { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -339,9 +358,11 @@ async function* completeAnthropicStream(args: {
 			const message = json.message as { usage?: { input_tokens?: number } } | undefined;
 			inputTokens = message?.usage?.input_tokens;
 		} else if (type === "content_block_delta") {
-			const delta = json.delta as { type?: string; text?: string } | undefined;
+			const delta = json.delta as { type?: string; text?: string; thinking?: string } | undefined;
 			if (delta?.type === "text_delta" && typeof delta.text === "string") {
 				yield { type: "content", content: delta.text };
+			} else if (delta?.type === "thinking_delta" && typeof delta.thinking === "string") {
+				yield { type: "reasoning", content: delta.thinking };
 			}
 		} else if (type === "message_delta") {
 			const usage = json.usage as { output_tokens?: number } | undefined;

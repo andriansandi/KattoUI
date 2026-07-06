@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("~/components/markdown", () => ({
@@ -185,5 +185,64 @@ describe("MessageItem regenerate", () => {
 		renderMessage({ role: "assistant", content: "resp", canRegenerate: true, onRegenerate });
 		fireEvent.click(screen.getByRole("button", { name: "Regenerate response" }));
 		expect(onRegenerate).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("MessageItem reasoning", () => {
+	it("does not show reasoning dropdown when reasoning is not provided", () => {
+		renderMessage({ role: "assistant", content: "answer" });
+		expect(screen.queryByText("Reasoning")).not.toBeInTheDocument();
+	});
+
+	it("shows reasoning button when reasoning is provided", () => {
+		renderMessage({ role: "assistant", content: "answer", reasoning: "my thought process" });
+		expect(screen.getByText("Reasoning")).toBeInTheDocument();
+	});
+
+	it("does not show reasoning content when collapsed", () => {
+		renderMessage({ role: "assistant", content: "answer", reasoning: "my thought process" });
+		expect(screen.queryByText("my thought process")).not.toBeInTheDocument();
+	});
+
+	it("expands reasoning content on click", () => {
+		renderMessage({ role: "assistant", content: "answer", reasoning: "my thought process" });
+		fireEvent.click(screen.getByText("Reasoning"));
+		expect(screen.getByText("my thought process")).toBeInTheDocument();
+	});
+
+	it("collapses reasoning content on second click", async () => {
+		renderMessage({ role: "assistant", content: "answer", reasoning: "my thought process" });
+		const btn = screen.getByText("Reasoning");
+		fireEvent.click(btn);
+		expect(screen.getByText("my thought process")).toBeInTheDocument();
+		fireEvent.click(btn);
+		await waitFor(() => {
+			expect(screen.queryByText("my thought process")).not.toBeInTheDocument();
+		});
+	});
+
+	it("does not show reasoning dropdown for user messages", () => {
+		renderMessage({ role: "user", content: "question", reasoning: "should not appear" });
+		expect(screen.queryByText("Reasoning")).not.toBeInTheDocument();
+	});
+
+	it("auto-expands when streaming reasoning arrives", () => {
+		renderMessage({
+			role: "assistant",
+			content: "",
+			streaming: true,
+			streamingReasoning: "thinking live...",
+		});
+		expect(screen.getByText("thinking live...")).toBeInTheDocument();
+	});
+
+	it("does not show Thinking indicator when streaming reasoning is present", () => {
+		renderMessage({
+			role: "assistant",
+			content: "",
+			streaming: true,
+			streamingReasoning: "thinking...",
+		});
+		expect(screen.queryByText("Thinking...")).not.toBeInTheDocument();
 	});
 });

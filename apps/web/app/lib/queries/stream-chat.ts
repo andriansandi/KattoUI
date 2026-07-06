@@ -22,6 +22,7 @@ interface UseStreamChatResult {
 	stop: () => void;
 	isStreaming: boolean;
 	streamingContent: string;
+	streamingReasoning: string;
 	error: string | null;
 }
 
@@ -32,6 +33,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [streamingContent, setStreamingContent] = useState("");
+	const [streamingReasoning, setStreamingReasoning] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
@@ -45,6 +47,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 			setError(null);
 			setIsStreaming(true);
 			setStreamingContent("");
+			setStreamingReasoning("");
 
 			await qc.cancelQueries({ queryKey: key });
 
@@ -89,6 +92,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 				const decoder = new TextDecoder();
 				let buffer = "";
 				let accumulated = "";
+				let reasoningAccumulated = "";
 
 				while (true) {
 					const { done, value } = await reader.read();
@@ -112,6 +116,9 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 							if (event.type === "delta") {
 								accumulated += event.content;
 								setStreamingContent(accumulated);
+							} else if (event.type === "reasoning") {
+								reasoningAccumulated += event.content;
+								setStreamingReasoning(reasoningAccumulated);
 							} else if (event.type === "error") {
 								setError(event.message);
 							}
@@ -129,6 +136,7 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 			} finally {
 				setIsStreaming(false);
 				setStreamingContent("");
+				setStreamingReasoning("");
 				abortRef.current = null;
 				qc.invalidateQueries({ queryKey: key });
 				qc.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
@@ -141,5 +149,5 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 		abortRef.current?.abort();
 	}, []);
 
-	return { send, stop, isStreaming, streamingContent, error };
+	return { send, stop, isStreaming, streamingContent, streamingReasoning, error };
 }

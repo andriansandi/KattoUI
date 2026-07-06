@@ -168,6 +168,7 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
 		type: row.type,
 		baseUrl: row.baseUrl,
 		isConfigured: row.apiToken !== "",
+		streaming: row.streaming === 1,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 	};
@@ -191,7 +192,12 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
 
 /** Maps a stored provider-model row to the SDK catalog entry shape. */
 function toEntry(row: typeof providerModels.$inferSelect): ProviderModelEntry {
-	return { id: row.modelId, name: row.name, enabled: row.enabled === 1 };
+	return {
+		id: row.modelId,
+		name: row.name,
+		enabled: row.enabled === 1,
+		reasoning: row.reasoning === 1,
+	};
 }
 
 app.get("/", async (c) => {
@@ -258,6 +264,7 @@ app.post("/", async (c) => {
 			baseUrl: data.baseUrl,
 			apiToken: await encryptSecret(data.apiToken ?? "", c.env),
 			defaultModel: data.defaultModel || null,
+			streaming: data.streaming !== undefined ? (data.streaming ? 1 : 0) : 1,
 			createdAt: now,
 			updatedAt: now,
 		})
@@ -324,6 +331,7 @@ app.patch("/:id", async (c) => {
 			...(data.defaultModel !== undefined && {
 				defaultModel: data.defaultModel || null,
 			}),
+			...(data.streaming !== undefined && { streaming: data.streaming ? 1 : 0 }),
 		})
 		.where(eq(providerConfigs.id, id))
 		.returning();
@@ -565,7 +573,11 @@ app.patch("/:id/models", async (c) => {
 	for (const m of data.models) {
 		await db
 			.update(providerModels)
-			.set({ enabled: m.enabled ? 1 : 0, updatedAt: now })
+			.set({
+				enabled: m.enabled ? 1 : 0,
+				...(m.reasoning !== undefined && { reasoning: m.reasoning ? 1 : 0 }),
+				updatedAt: now,
+			})
 			.where(and(eq(providerModels.providerConfigId, id), eq(providerModels.modelId, m.id)));
 	}
 
