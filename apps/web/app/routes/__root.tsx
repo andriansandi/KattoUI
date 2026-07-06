@@ -2,6 +2,7 @@ import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-r
 import type { ReactNode } from "react";
 import "@katto/design-system/styles/themes.css";
 import "~/styles/animations.css";
+import "~/styles/markdown.css";
 import { CommandPalette } from "~/components/command-palette";
 
 export const Route = createRootRoute({
@@ -47,7 +48,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 			<head>
 				<HeadContent />
 			</head>
-			<body>
+			<body className="overflow-hidden">
 				{children}
 				<Scripts />
 			</body>

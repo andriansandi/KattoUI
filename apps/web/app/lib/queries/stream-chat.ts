@@ -15,7 +15,10 @@ function messagesKey(conversationId: string) {
 }
 
 interface UseStreamChatResult {
-	send: (content: string, opts?: { model?: string; providerConfigId?: string }) => Promise<void>;
+	send: (
+		content: string,
+		opts?: { model?: string; providerConfigId?: string; regenerate?: boolean },
+	) => Promise<void>;
 	stop: () => void;
 	isStreaming: boolean;
 	streamingContent: string;
@@ -33,8 +36,11 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 	const abortRef = useRef<AbortController | null>(null);
 
 	const send = useCallback(
-		async (content: string, opts?: { model?: string; providerConfigId?: string }) => {
-			if (isStreaming || !content.trim()) return;
+		async (
+			content: string,
+			opts?: { model?: string; providerConfigId?: string; regenerate?: boolean },
+		) => {
+			if (isStreaming || (!content.trim() && !opts?.regenerate)) return;
 
 			setError(null);
 			setIsStreaming(true);
@@ -42,19 +48,21 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 
 			await qc.cancelQueries({ queryKey: key });
 
-			const tempId = `temp-${Date.now()}`;
-			const tempMessage: StoredMessage = {
-				id: tempId,
-				conversationId,
-				role: "user",
-				content,
-				createdAt: Date.now(),
-			};
+			if (!opts?.regenerate) {
+				const tempId = `temp-${Date.now()}`;
+				const tempMessage: StoredMessage = {
+					id: tempId,
+					conversationId,
+					role: "user",
+					content,
+					createdAt: Date.now(),
+				};
 
-			qc.setQueryData<MessagesResponse>(key, (old) => {
-				if (!old) return { messages: [tempMessage] };
-				return { messages: [...old.messages, tempMessage] };
-			});
+				qc.setQueryData<MessagesResponse>(key, (old) => {
+					if (!old) return { messages: [tempMessage] };
+					return { messages: [...old.messages, tempMessage] };
+				});
+			}
 
 			const controller = new AbortController();
 			abortRef.current = controller;

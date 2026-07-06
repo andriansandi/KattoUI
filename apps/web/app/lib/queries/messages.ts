@@ -23,6 +23,39 @@ export function useMessages(conversationId: string) {
 	});
 }
 
+export function useUpdateMessage(conversationId: string) {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	const key = messagesKey(conversationId);
+
+	return useMutation({
+		mutationFn: ({ messageId, content }: { messageId: string; content: string }) =>
+			authFetch<StoredMessage>(`/conversations/${conversationId}/messages/${messageId}`, {
+				method: "PATCH",
+				body: JSON.stringify({ content }),
+			}),
+		onSettled: () => {
+			qc.invalidateQueries({ queryKey: key });
+		},
+	});
+}
+
+export function useDeleteMessage(conversationId: string) {
+	const authFetch = useAuthFetch();
+	const qc = useQueryClient();
+	const key = messagesKey(conversationId);
+
+	return useMutation({
+		mutationFn: (messageId: string) =>
+			authFetch<void>(`/conversations/${conversationId}/messages/${messageId}`, {
+				method: "DELETE",
+			}),
+		onSettled: () => {
+			qc.invalidateQueries({ queryKey: key });
+		},
+	});
+}
+
 export function useCreateMessage(conversationId: string) {
 	const authFetch = useAuthFetch();
 	const qc = useQueryClient();

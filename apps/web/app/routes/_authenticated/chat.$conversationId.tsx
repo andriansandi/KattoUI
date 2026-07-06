@@ -11,7 +11,7 @@ import {
 	useGenerateTitle,
 	useUpdateConversation,
 } from "~/lib/queries/conversations";
-import { useMessages } from "~/lib/queries/messages";
+import { useDeleteMessage, useMessages, useUpdateMessage } from "~/lib/queries/messages";
 import { useStreamChat } from "~/lib/queries/stream-chat";
 import { useUIStore } from "~/stores/ui-store";
 
@@ -33,6 +33,8 @@ function ChatConversationPage() {
 	const streamChat = useStreamChat(conversationId);
 	const generateTitle = useGenerateTitle();
 	const updateConversation = useUpdateConversation();
+	const updateMessage = useUpdateMessage(conversationId);
+	const deleteMessage = useDeleteMessage(conversationId);
 
 	const [input, setInput] = useState("");
 	const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
@@ -52,6 +54,8 @@ function ChatConversationPage() {
 	}
 
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const stickToBottomRef = useRef(true);
+	const prevConversationIdRef = useRef(conversationId);
 	const messages = data?.messages ?? [];
 
 	const didHandlePending = useRef(false);
@@ -68,15 +72,29 @@ function ChatConversationPage() {
 		void handleSend(pendingMessage.content);
 	}, [pendingMessage, streamChat.isStreaming, conversationId, setPendingMessage]);
 
+	function handleScroll() {
+		const el = scrollRef.current;
+		if (!el) return;
+		const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+		stickToBottomRef.current = distanceFromBottom < 80;
+	}
+
 	useEffect(() => {
 		const el = scrollRef.current;
 		if (!el || (messages.length === 0 && !streamChat.streamingContent)) return;
-		el.scrollTop = el.scrollHeight;
-	}, [messages, streamChat.streamingContent]);
+		if (prevConversationIdRef.current !== conversationId) {
+			prevConversationIdRef.current = conversationId;
+			stickToBottomRef.current = true;
+		}
+		if (stickToBottomRef.current) {
+			el.scrollTop = el.scrollHeight;
+		}
+	}, [messages, streamChat.streamingContent, conversationId]);
 
 	async function handleSend(content?: string) {
 		const text = content ?? input;
 		if (!text.trim() || streamChat.isStreaming) return;
+		stickToBottomRef.current = true;
 		const isFirst = messages.length === 0;
 		setInput("");
 		const opts: { model?: string; providerConfigId?: string } = {};
@@ -86,8 +104,38 @@ function ChatConversationPage() {
 		if (isFirst) generateTitle.mutate(conversationId);
 	}
 
+	function buildRegenerateOpts() {
+		const opts: { model?: string; providerConfigId?: string; regenerate?: boolean } = {
+			regenerate: true,
+		};
+		if (selectedModel !== undefined) opts.model = selectedModel;
+		if (selectedProviderId !== undefined) opts.providerConfigId = selectedProviderId;
+		return opts;
+	}
+
+	async function handleEdit(messageId: string, newContent: string) {
+		if (streamChat.isStreaming) return;
+		await updateMessage.mutateAsync({ messageId, content: newContent });
+		const edited = messages.find((m) => m.id === messageId);
+		if (edited) {
+			const subsequent = messages.filter((m) => m.createdAt > edited.createdAt);
+			for (const msg of subsequent) {
+				await deleteMessage.mutateAsync(msg.id);
+			}
+		}
+		stickToBottomRef.current = true;
+		await streamChat.send("", buildRegenerateOpts());
+	}
+
+	async function handleRegenerate(messageId: string) {
+		if (streamChat.isStreaming) return;
+		await deleteMessage.mutateAsync(messageId);
+		stickToBottomRef.current = true;
+		await streamChat.send("", buildRegenerateOpts());
+	}
+
 	return (
-		<div className="flex h-full w-full flex-col">
+		<div className="flex min-h-0 w-full flex-1 flex-col">
 			<ChatHeader
 				title={conversation?.title ?? "Chat"}
 				selectedModel={selectedModel}
@@ -95,7 +143,11 @@ function ChatConversationPage() {
 				onModelChange={handleModelChange}
 				onToggleMobileSidebar={toggleMobileSidebar}
 			/>
-			<div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
+			<div
+				ref={scrollRef}
+				onScroll={handleScroll}
+				className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-4 py-6"
+			>
 				{isLoading ? (
 					<div className="space-y-6">
 						<Skeleton className="h-16 w-3/4 rounded-2xl" />
@@ -115,9 +167,24 @@ function ChatConversationPage() {
 					</div>
 				) : (
 					<>
-						{messages.map((m) => (
-							<MessageItem key={m.id} role={m.role} content={m.content} />
-						))}
+						{messages.map((m, index) => {
+							const isLastAssistant = m.role === "assistant" && index === messages.length - 1;
+							return (
+								<MessageItem
+									key={m.id}
+									role={m.role}
+									content={m.content}
+									tokensPrompt={m.tokensPrompt}
+									tokensCompletion={m.tokensCompletion}
+									tokensTotal={m.tokensTotal}
+									onEdit={
+										m.role === "user" ? (content: string) => handleEdit(m.id, content) : undefined
+									}
+									onRegenerate={isLastAssistant ? () => handleRegenerate(m.id) : undefined}
+									canRegenerate={isLastAssistant && !streamChat.isStreaming}
+								/>
+							);
+						})}
 						{streamChat.isStreaming && (
 							// biome-ignore lint/a11y/useValidAriaRole: role is a MessageItem prop, not an HTML attribute
 							<MessageItem role={"assistant"} content={streamChat.streamingContent} streaming />
@@ -138,7 +205,7 @@ function ChatConversationPage() {
 					</>
 				)}
 			</div>
-			<div className="px-4 pb-4 pt-2">
+			<div className="flex-shrink-0 px-4 pb-4 pt-2">
 				<ChatComposer
 					value={input}
 					onChange={setInput}

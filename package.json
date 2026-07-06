@@ -24,8 +24,13 @@
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@playwright/test": "^1.49.0",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.1.0",
+		"@testing-library/user-event": "^14.5.2",
 		"@types/node": "^22.10.0",
+		"@vitejs/plugin-react": "^4.4.0",
 		"concurrently": "^9.1.0",
+		"jsdom": "^25.0.1",
 		"vitest": "^2.1.0",
 		"wrangler": "^4.106.0"
 	}

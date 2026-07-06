@@ -83,7 +83,7 @@ function ChatEmptyState() {
 	}
 
 	return (
-		<div className="relative flex h-full w-full flex-col">
+		<div className="relative flex min-h-0 w-full flex-1 flex-col">
 			<Button
 				variant="ghost"
 				size="icon"
@@ -107,7 +107,7 @@ function ChatEmptyState() {
 					</div>
 				)}
 			</div>
-			<div className="px-4 pb-4 pt-2">
+			<div className="flex-shrink-0 px-4 pb-4 pt-2">
 				<ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={isStarting} />
 			</div>
 		</div>
