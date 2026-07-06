@@ -36,6 +36,20 @@
       "when": 1783249335487,
       "tag": "0004_provider_models_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783335736000,
+      "tag": "0005_add_provider_streaming",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783340142962,
+      "tag": "0006_add_reasoning",
+      "breakpoints": true
     }
   ]
 }

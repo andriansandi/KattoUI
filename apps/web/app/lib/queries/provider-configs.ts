@@ -160,7 +160,7 @@ export function useUpdateProviderModels(configId: string) {
 	const authFetch = useAuthFetch();
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (input: { models: Array<{ id: string; enabled: boolean }> }) =>
+		mutationFn: (input: { models: Array<{ id: string; enabled: boolean; reasoning?: boolean }> }) =>
 			authFetch<ProviderModelsResponse>(`/provider-configs/${configId}/models`, {
 				method: "PATCH",
 				body: JSON.stringify(input),

@@ -1,6 +1,6 @@
-import { Check, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { Brain, Check, ChevronRight, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 import { CopyButton } from "~/components/copy-button";
 import { Markdown } from "~/components/markdown";
 import { Button } from "~/components/ui/button";
@@ -10,7 +10,9 @@ import { cn } from "~/lib/cn";
 export interface MessageItemProps {
 	role: "user" | "assistant" | "system";
 	content: string;
+	reasoning?: string | undefined;
 	streaming?: boolean;
+	streamingReasoning?: string | undefined;
 	tokensPrompt?: number | undefined;
 	tokensCompletion?: number | undefined;
 	tokensTotal?: number | undefined;
@@ -22,7 +24,9 @@ export interface MessageItemProps {
 export function MessageItem({
 	role,
 	content,
+	reasoning,
 	streaming = false,
+	streamingReasoning,
 	tokensPrompt,
 	tokensCompletion,
 	tokensTotal,
@@ -33,6 +37,15 @@ export function MessageItem({
 	const reduceMotion = useReducedMotion();
 	const [isEditing, setIsEditing] = useState(false);
 	const [editValue, setEditValue] = useState(content);
+	const [reasoningExpanded, setReasoningExpanded] = useState(false);
+
+	const reasoningText = streaming ? (streamingReasoning ?? "") : (reasoning ?? "");
+
+	useEffect(() => {
+		if (streaming && streamingReasoning) {
+			setReasoningExpanded(true);
+		}
+	}, [streaming, streamingReasoning]);
 
 	if (role === "system") {
 		return (
@@ -94,9 +107,43 @@ export function MessageItem({
 					</div>
 				) : (
 					<>
+						{!isUser && reasoningText && (
+							<div className="mb-2">
+								<button
+									type="button"
+									onClick={() => setReasoningExpanded((v) => !v)}
+									className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+								>
+									<Brain className="h-3.5 w-3.5" />
+									<span>Reasoning</span>
+									<ChevronRight
+										className={cn("h-3 w-3 transition-transform", reasoningExpanded && "rotate-90")}
+									/>
+								</button>
+								<AnimatePresence initial={false}>
+									{reasoningExpanded && (
+										<motion.div
+											initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+											animate={{ height: "auto", opacity: 1 }}
+											exit={
+												reduceMotion
+													? { height: 0, opacity: 0, transition: { duration: 0 } }
+													: { height: 0, opacity: 0 }
+											}
+											transition={{ duration: 0.2, ease: "easeOut" }}
+											className="overflow-hidden"
+										>
+											<div className="mt-1.5 max-h-[300px] overflow-y-auto rounded-lg border border-border/50 bg-background/50 p-2.5 text-xs leading-relaxed text-muted-foreground">
+												<Markdown content={reasoningText} streaming={streaming} />
+											</div>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+						)}
 						{isUser ? (
 							content
-						) : streaming && !content ? (
+						) : streaming && !content && !reasoningText ? (
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Sparkles className="h-4 w-4 animate-pulse text-primary" />
 								<span>Thinking...</span>

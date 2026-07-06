@@ -9,9 +9,13 @@ import { and, asc, count, desc, eq, inArray, max, min } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
-import { conversations, messages } from "../../db/schema.js";
+import { conversations, messages, providerModels } from "../../db/schema.js";
 import { decryptSecret } from "../lib/crypto.js";
-import { completeChat, completeChatStream } from "../lib/provider-complete.js";
+import {
+	type CompletionResult,
+	completeChat,
+	completeChatStream,
+} from "../lib/provider-complete.js";
 import { resolveProviderConfig } from "../lib/provider-resolve.js";
 import {
 	conversationCreateSchema,
@@ -80,6 +84,9 @@ function toMessage(row: typeof messages.$inferSelect): StoredMessage {
 	};
 	if (row.model !== null) {
 		message.model = row.model;
+	}
+	if (row.reasoning !== null) {
+		message.reasoning = row.reasoning;
 	}
 	if (row.tokensPrompt !== null) {
 		message.tokensPrompt = row.tokensPrompt;
@@ -470,7 +477,7 @@ app.post("/:id/generate-title", async (c) => {
 			signal: controller.signal,
 		});
 
-		const title = cleanTitle(raw, AUTO_TITLE_LIMIT);
+		const title = cleanTitle(raw.content, AUTO_TITLE_LIMIT);
 		if (!title) {
 			return c.json({ title: conv.title, generated: false });
 		}
@@ -522,6 +529,13 @@ app.post("/:id/messages/stream", async (c) => {
 	}
 
 	const { config, model } = resolved;
+
+	const [modelRow] = await db
+		.select({ reasoning: providerModels.reasoning })
+		.from(providerModels)
+		.where(and(eq(providerModels.providerConfigId, config.id), eq(providerModels.modelId, model)))
+		.limit(1);
+	const showReasoning = (modelRow?.reasoning ?? 0) === 1;
 
 	const now = Date.now();
 	const assistantMessageId = crypto.randomUUID();
@@ -577,7 +591,59 @@ app.post("/:id/messages/stream", async (c) => {
 		};
 		await stream.writeSSE({ data: JSON.stringify(metaEvent) });
 
+		if (config.streaming === 0) {
+			try {
+				const result: CompletionResult = await completeChat({
+					type: config.type,
+					baseUrl: config.baseUrl,
+					apiToken: await decryptSecret(config.apiToken, c.env),
+					model,
+					messages: chatMessages,
+					maxTokens: 4096,
+					signal: upstreamController.signal,
+				});
+
+				if (showReasoning && result.reasoning) {
+					const reasoningEvent: StreamChatEvent = {
+						type: "reasoning",
+						content: result.reasoning,
+					};
+					await stream.writeSSE({ data: JSON.stringify(reasoningEvent) });
+				}
+
+				const deltaEvent: StreamChatEvent = { type: "delta", content: result.content };
+				await stream.writeSSE({ data: JSON.stringify(deltaEvent) });
+
+				await db.insert(messages).values({
+					id: assistantMessageId,
+					conversationId: id,
+					role: "assistant",
+					content: result.content,
+					model,
+					reasoning: showReasoning ? (result.reasoning ?? null) : null,
+					createdAt: Date.now(),
+				});
+
+				await db
+					.update(conversations)
+					.set({ updatedAt: Date.now() })
+					.where(eq(conversations.id, id));
+
+				const doneEvent: StreamChatEvent = {
+					type: "done",
+					messageId: assistantMessageId,
+				};
+				await stream.writeSSE({ data: JSON.stringify(doneEvent) });
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Provider request failed";
+				const errorEvent: StreamChatEvent = { type: "error", message };
+				await stream.writeSSE({ data: JSON.stringify(errorEvent) });
+			}
+			return;
+		}
+
 		let accumulated = "";
+		let reasoningAccumulated = "";
 		let usage:
 			| { promptTokens?: number; completionTokens?: number; totalTokens?: number }
 			| undefined;
@@ -599,6 +665,13 @@ app.post("/:id/messages/stream", async (c) => {
 						content: chunk.content,
 					};
 					await stream.writeSSE({ data: JSON.stringify(deltaEvent) });
+				} else if (chunk.type === "reasoning" && chunk.content && showReasoning) {
+					reasoningAccumulated += chunk.content;
+					const reasoningEvent: StreamChatEvent = {
+						type: "reasoning",
+						content: chunk.content,
+					};
+					await stream.writeSSE({ data: JSON.stringify(reasoningEvent) });
 				} else if (chunk.type === "usage" && chunk.usage) {
 					usage = chunk.usage;
 				} else if (chunk.type === "error") {
@@ -632,6 +705,7 @@ app.post("/:id/messages/stream", async (c) => {
 				role: "assistant",
 				content: accumulated,
 				model,
+				reasoning: reasoningAccumulated || null,
 				tokensPrompt: usage?.promptTokens ?? null,
 				tokensCompletion: usage?.completionTokens ?? null,
 				tokensTotal: usage?.totalTokens ?? null,

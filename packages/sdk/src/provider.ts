@@ -64,7 +64,7 @@ export interface ToolDefinition {
 
 /** A chunk emitted during a streaming chat response. */
 export interface ChatChunk {
-	type: "content" | "tool_call" | "usage" | "error" | "done";
+	type: "content" | "reasoning" | "tool_call" | "usage" | "error" | "done";
 	content?: string;
 	toolCall?: ToolCall;
 	usage?: {

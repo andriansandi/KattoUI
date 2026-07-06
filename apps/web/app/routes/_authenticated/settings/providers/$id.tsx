@@ -9,6 +9,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	AlertCircle,
 	ArrowLeft,
+	Brain,
 	Check,
 	Eye,
 	EyeOff,
@@ -155,6 +156,7 @@ function ConnectionSection({
 			baseUrl: config?.baseUrl ?? "",
 			apiToken: "",
 			defaultModel: config?.defaultModel ?? "",
+			streaming: config?.streaming ?? true,
 		},
 		onSubmit: async ({ value }) => {
 			try {
@@ -165,6 +167,7 @@ function ConnectionSection({
 						baseUrl: value.baseUrl,
 						apiToken: value.apiToken,
 						defaultModel: value.defaultModel,
+						streaming: value.streaming,
 					};
 					const created = await createMutation.mutateAsync(input);
 					navigate({ to: "/settings/providers/$id", params: { id: created.id } });
@@ -175,6 +178,7 @@ function ConnectionSection({
 						type: value.type,
 						baseUrl: value.baseUrl,
 						defaultModel: value.defaultModel,
+						streaming: value.streaming,
 					};
 					if (value.apiToken) update.apiToken = value.apiToken;
 					await updateMutation.mutateAsync(update);
@@ -343,6 +347,35 @@ function ConnectionSection({
 						)}
 					</form.Field>
 
+					<form.Field name="streaming">
+						{(field) => (
+							<div className="flex items-center justify-between rounded-lg border p-3">
+								<div className="pr-4">
+									<span className="block text-sm font-medium">Streaming</span>
+									<p className="text-xs text-muted-foreground">
+										Disable for models that don't support streaming (e.g. some NVIDIA NIM models).
+									</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => field.handleChange(!field.state.value)}
+									className={cn(
+										"flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors",
+										field.state.value ? "bg-primary" : "bg-muted",
+									)}
+									aria-label={field.state.value ? "Disable streaming" : "Enable streaming"}
+								>
+									<span
+										className={cn(
+											"h-4 w-4 rounded-full bg-background transition-transform",
+											field.state.value && "translate-x-4",
+										)}
+									/>
+								</button>
+							</div>
+						)}
+					</form.Field>
+
 					{!isCreate && (
 						<form.Subscribe selector={(s) => s.values}>
 							{(values) => (
@@ -494,6 +527,10 @@ function ModelsSection({
 		updateModels.mutate({ models: [{ id, enabled: !enabled }] });
 	}
 
+	function toggleReasoning(id: string, enabled: boolean, reasoning: boolean) {
+		updateModels.mutate({ models: [{ id, enabled, reasoning: !reasoning }] });
+	}
+
 	function setDefault(modelId: string) {
 		updateConfig.mutate({ id: config.id, defaultModel: modelId });
 	}
@@ -587,6 +624,20 @@ function ModelsSection({
 										<p className="truncate text-sm font-medium">{m.name}</p>
 										<p className="truncate text-xs text-muted-foreground">{m.id}</p>
 									</div>
+									<button
+										type="button"
+										onClick={() => toggleReasoning(m.id, m.enabled, m.reasoning ?? false)}
+										className={cn(
+											"flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors",
+											m.reasoning
+												? "text-primary"
+												: "text-muted-foreground/50 hover:text-muted-foreground",
+										)}
+										aria-label={m.reasoning ? "Disable reasoning" : "Enable reasoning"}
+										title={m.reasoning ? "Reasoning enabled" : "Enable reasoning capture"}
+									>
+										<Brain className="h-3.5 w-3.5" />
+									</button>
 									{isDefault && (
 										<Badge variant="secondary" className="shrink-0 gap-1">
 											<Star className="h-3 w-3" />

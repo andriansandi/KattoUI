@@ -174,6 +174,7 @@ function ChatConversationPage() {
 									key={m.id}
 									role={m.role}
 									content={m.content}
+									reasoning={m.reasoning}
 									tokensPrompt={m.tokensPrompt}
 									tokensCompletion={m.tokensCompletion}
 									tokensTotal={m.tokensTotal}
@@ -187,7 +188,12 @@ function ChatConversationPage() {
 						})}
 						{streamChat.isStreaming && (
 							// biome-ignore lint/a11y/useValidAriaRole: role is a MessageItem prop, not an HTML attribute
-							<MessageItem role={"assistant"} content={streamChat.streamingContent} streaming />
+							<MessageItem
+								role={"assistant"}
+								content={streamChat.streamingContent}
+								streamingReasoning={streamChat.streamingReasoning}
+								streaming
+							/>
 						)}
 						{streamChat.error && (
 							<div className="flex justify-center px-4 py-3">
