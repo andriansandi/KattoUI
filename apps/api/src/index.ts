@@ -14,7 +14,7 @@ app.use(logger());
 app.use(
 	"*",
 	cors({
-		origin: ["http://localhost:5177", "https://katto-ui.pages.dev"],
+		origin: ["http://localhost:5177"],
 		allowHeaders: ["Content-Type", "Authorization", "X-Guest-Session"],
 		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		credentials: true,
