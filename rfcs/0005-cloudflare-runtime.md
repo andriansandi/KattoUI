@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Partially superseded — deployment topology (§1, §2, §6) replaced by RFC 0006. Bindings (§3), local dev (§4), env strategy (§5), observability (§7), and secrets (§8) remain current. |
 | Authors | KattoUI Core Team |
 | Created | 2026-07-02 |
-| Updated | 2026-07-02 |
-| Related | RFC 0001, ADR 0003 |
+| Updated | 2026-07-06 |
+| Related | RFC 0001, ADR 0003, RFC 0006 |
 
 ## Summary
 
