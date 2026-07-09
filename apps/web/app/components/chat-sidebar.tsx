@@ -8,6 +8,7 @@ import {
 	Pin,
 	Search,
 	Settings,
+	Star,
 	Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -55,6 +56,7 @@ function ChatSidebarContent() {
 	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 
 	const [search, setSearch] = useState("");
+	const [filter, setFilter] = useState<"all" | "favorites">("all");
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState("");
 	const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -70,9 +72,11 @@ function ChatSidebarContent() {
 			? conversations.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
 			: conversations
 	)
+		.filter((c) => (filter === "favorites" ? c.favorited : true))
 		.slice()
 		.sort((a, b) => {
 			if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+			if (a.favorited !== b.favorited) return a.favorited ? -1 : 1;
 			return 0;
 		});
 
@@ -138,6 +142,33 @@ function ChatSidebarContent() {
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 				</div>
+				<div className="flex gap-1 rounded-lg bg-accent/50 p-0.5">
+					<button
+						type="button"
+						className={cn(
+							"flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+							filter === "all"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground",
+						)}
+						onClick={() => setFilter("all")}
+					>
+						All
+					</button>
+					<button
+						type="button"
+						className={cn(
+							"flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+							filter === "favorites"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground",
+						)}
+						onClick={() => setFilter("favorites")}
+					>
+						<Star className="h-3 w-3" />
+						Favorites
+					</button>
+				</div>
 			</div>
 
 			<div className="flex-1 overflow-y-auto p-2">
@@ -158,7 +189,11 @@ function ChatSidebarContent() {
 				) : filtered.length === 0 ? (
 					<div className="p-4 text-center">
 						<p className="text-sm text-muted-foreground">
-							{search.trim() ? "No matches found" : "No conversations yet"}
+							{search.trim()
+								? "No matches found"
+								: filter === "favorites"
+									? "No favorites yet"
+									: "No conversations yet"}
 						</p>
 					</div>
 				) : (
@@ -169,6 +204,9 @@ function ChatSidebarContent() {
 								conversation={c}
 								isActive={c.id === activeId}
 								onTogglePin={() => updateMutation.mutate({ id: c.id, pinned: !c.pinned })}
+								onToggleFavorite={() =>
+									updateMutation.mutate({ id: c.id, favorited: !c.favorited })
+								}
 								onStartRename={() => startRename(c)}
 								onRequestDelete={() => setConfirmingDeleteId(c.id)}
 								onNavigate={() => setMobileSidebarOpen(false)}
@@ -212,6 +250,7 @@ interface ConversationItemProps {
 	conversation: ConversationSummary;
 	isActive: boolean;
 	onTogglePin: () => void;
+	onToggleFavorite: () => void;
 	onStartRename: () => void;
 	onRequestDelete: () => void;
 	onNavigate: () => void;
@@ -221,6 +260,7 @@ function ConversationItem({
 	conversation,
 	isActive,
 	onTogglePin,
+	onToggleFavorite,
 	onStartRename,
 	onRequestDelete,
 	onNavigate,
@@ -258,6 +298,9 @@ function ConversationItem({
 			>
 				<p className="flex items-center gap-1 truncate text-sm font-medium">
 					{conversation.pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
+					{conversation.favorited && (
+						<Star className="h-3 w-3 shrink-0 fill-current text-amber-500" />
+					)}
 					<span className="truncate">{conversation.title}</span>
 				</p>
 				{conversation.preview?.firstUser ? (
@@ -305,6 +348,19 @@ function ConversationItem({
 									className={cn("h-3 w-3", conversation.pinned && "fill-current text-primary")}
 								/>
 								{conversation.pinned ? "Unpin" : "Pin"}
+							</button>
+							<button
+								type="button"
+								className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent"
+								onClick={() => {
+									setMenuOpen(false);
+									onToggleFavorite();
+								}}
+							>
+								<Star
+									className={cn("h-3 w-3", conversation.favorited && "fill-current text-amber-500")}
+								/>
+								{conversation.favorited ? "Unfavorite" : "Favorite"}
 							</button>
 							<button
 								type="button"
