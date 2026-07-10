@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "~/components/command-palette";
+import { KeyboardRegistryProvider } from "~/lib/keyboard-registry";
 import { useUIStore } from "~/stores/ui-store";
 
 vi.mock("~/lib/commands", () => ({
@@ -36,6 +37,14 @@ vi.mock("~/lib/commands", () => ({
 	getCommandIcon: () => undefined,
 }));
 
+function renderPalette() {
+	return render(
+		<KeyboardRegistryProvider>
+			<CommandPalette />
+		</KeyboardRegistryProvider>,
+	);
+}
+
 describe("CommandPalette", () => {
 	beforeEach(() => {
 		Element.prototype.scrollIntoView = vi.fn();
@@ -47,21 +56,21 @@ describe("CommandPalette", () => {
 	});
 
 	it("renders commands when open", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		expect(screen.getByText("Test One")).toBeInTheDocument();
 		expect(screen.getByText("Test Two")).toBeInTheDocument();
 		expect(screen.getByText("Test Three")).toBeInTheDocument();
 	});
 
 	it("highlights first command by default", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		const buttons = screen.getAllByRole("button");
 		expect(buttons[0]).toHaveClass("bg-accent");
 		expect(buttons[1]).not.toHaveClass("bg-accent");
 	});
 
 	it("ArrowDown moves selection down", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		const input = screen.getByPlaceholderText("Type a command or search...");
 		fireEvent.keyDown(input, { key: "ArrowDown" });
 		const buttons = screen.getAllByRole("button");
@@ -70,7 +79,7 @@ describe("CommandPalette", () => {
 	});
 
 	it("ArrowUp wraps to last item", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		const input = screen.getByPlaceholderText("Type a command or search...");
 		fireEvent.keyDown(input, { key: "ArrowUp" });
 		const buttons = screen.getAllByRole("button");
@@ -78,14 +87,14 @@ describe("CommandPalette", () => {
 	});
 
 	it("Enter executes selected command and closes palette", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		const input = screen.getByPlaceholderText("Type a command or search...");
 		fireEvent.keyDown(input, { key: "Enter" });
 		expect(useUIStore.getState().commandPaletteOpen).toBe(false);
 	});
 
 	it("typing resets selection to first result", () => {
-		render(<CommandPalette />);
+		renderPalette();
 		const input = screen.getByPlaceholderText("Type a command or search...");
 		fireEvent.keyDown(input, { key: "ArrowDown" });
 		fireEvent.change(input, { target: { value: "test" } });

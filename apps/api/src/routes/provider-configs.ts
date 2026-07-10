@@ -224,6 +224,7 @@ app.get("/models", async (c) => {
 			providerName: providerConfigs.name,
 			modelId: providerModels.modelId,
 			modelName: providerModels.name,
+			reasoning: providerModels.reasoning,
 		})
 		.from(providerModels)
 		.innerJoin(providerConfigs, eq(providerModels.providerConfigId, providerConfigs.id))
@@ -239,7 +240,7 @@ app.get("/models", async (c) => {
 			byConfig.set(r.providerConfigId, g);
 			groups.push(g);
 		}
-		g.models.push({ id: r.modelId, name: r.modelName });
+		g.models.push({ id: r.modelId, name: r.modelName, reasoning: r.reasoning === 1 });
 	}
 
 	return c.json({ groups });

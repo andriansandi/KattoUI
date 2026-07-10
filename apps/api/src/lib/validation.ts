@@ -83,6 +83,8 @@ export const streamMessageSchema = z
 		model: z.string().max(200).optional(),
 		providerConfigId: z.string().max(200).optional(),
 		regenerate: z.boolean().optional(),
+		replaceMessageId: z.string().max(200).optional(),
+		deleteAfterMessageId: z.string().max(200).optional(),
 	})
 	.refine(
 		(data) => data.regenerate === true || (data.content !== undefined && data.content.length > 0),
