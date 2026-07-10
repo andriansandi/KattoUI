@@ -1,10 +1,12 @@
 import { Check, ChevronDown } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "~/lib/cn";
 
 export interface DropdownOption {
 	value: string;
 	label: string;
+	icon?: LucideIcon | undefined;
 }
 
 export interface DropdownGroup {
@@ -72,42 +74,54 @@ export function Dropdown({
 									<div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
 										{group.label}
 									</div>
-									{group.options.map((option) => (
-										<button
-											key={option.value}
-											type="button"
-											onClick={() => {
-												onChange(option.value);
-												setOpen(false);
-											}}
-											className={cn(
-												"flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent",
-												option.value === value && "font-medium text-foreground",
-											)}
-										>
-											<span className="truncate">{option.label}</span>
-											{option.value === value && <Check className="ml-2 h-3 w-3 shrink-0" />}
-										</button>
-									))}
+									{group.options.map((option) => {
+										const Icon = option.icon;
+										return (
+											<button
+												key={option.value}
+												type="button"
+												onClick={() => {
+													onChange(option.value);
+													setOpen(false);
+												}}
+												className={cn(
+													"flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent",
+													option.value === value && "font-medium text-foreground",
+												)}
+											>
+												<span className="flex items-center gap-1.5 truncate">
+													{Icon && <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />}
+													{option.label}
+												</span>
+												{option.value === value && <Check className="ml-2 h-3 w-3 shrink-0" />}
+											</button>
+										);
+									})}
 								</div>
 							))
-						: flat.map((option) => (
-								<button
-									key={option.value}
-									type="button"
-									onClick={() => {
-										onChange(option.value);
-										setOpen(false);
-									}}
-									className={cn(
-										"flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent",
-										option.value === value && "font-medium text-foreground",
-									)}
-								>
-									<span className="truncate">{option.label}</span>
-									{option.value === value && <Check className="ml-2 h-3 w-3 shrink-0" />}
-								</button>
-							))}
+						: flat.map((option) => {
+								const Icon = option.icon;
+								return (
+									<button
+										key={option.value}
+										type="button"
+										onClick={() => {
+											onChange(option.value);
+											setOpen(false);
+										}}
+										className={cn(
+											"flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent",
+											option.value === value && "font-medium text-foreground",
+										)}
+									>
+										<span className="flex items-center gap-1.5 truncate">
+											{Icon && <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />}
+											{option.label}
+										</span>
+										{option.value === value && <Check className="ml-2 h-3 w-3 shrink-0" />}
+									</button>
+								);
+							})}
 				</div>
 			)}
 		</div>

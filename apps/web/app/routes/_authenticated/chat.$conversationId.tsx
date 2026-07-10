@@ -1,17 +1,20 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { AlertCircle } from "lucide-react";
+import type { StoredMessage } from "@katto/sdk";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { AlertCircle, ArrowDown, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { ChatHeader } from "~/components/chat-header";
 import { MessageItem } from "~/components/chat-message";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useShortcut } from "~/lib/keyboard-registry";
 import {
 	useConversations,
 	useGenerateTitle,
 	useUpdateConversation,
 } from "~/lib/queries/conversations";
-import { useDeleteMessage, useMessages, useUpdateMessage } from "~/lib/queries/messages";
+import { useMessages, useUpdateMessage } from "~/lib/queries/messages";
 import { useStreamChat } from "~/lib/queries/stream-chat";
 import { useUIStore } from "~/stores/ui-store";
 
@@ -23,6 +26,7 @@ function ChatConversationPage() {
 	const { conversationId } = useParams({
 		from: "/_authenticated/chat/$conversationId",
 	});
+	const navigate = useNavigate();
 	const { data: convData } = useConversations();
 	const conversation = convData?.conversations.find((c) => c.id === conversationId);
 	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
@@ -34,11 +38,16 @@ function ChatConversationPage() {
 	const generateTitle = useGenerateTitle();
 	const updateConversation = useUpdateConversation();
 	const updateMessage = useUpdateMessage(conversationId);
-	const deleteMessage = useDeleteMessage(conversationId);
+	const qc = useQueryClient();
 
 	const [input, setInput] = useState("");
 	const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
 	const [selectedProviderId, setSelectedProviderId] = useState<string | undefined>(undefined);
+	const [showScrollButton, setShowScrollButton] = useState(false);
+	const [lastStreamRequest, setLastStreamRequest] = useState<{
+		content: string;
+		opts: { model?: string; providerConfigId?: string; regenerate?: boolean };
+	} | null>(null);
 
 	useEffect(() => {
 		if (selectedModel === undefined && conversation?.model) {
@@ -58,6 +67,24 @@ function ChatConversationPage() {
 	const prevConversationIdRef = useRef(conversationId);
 	const messages = data?.messages ?? [];
 
+	useShortcut({
+		id: "chat:new",
+		label: "New chat",
+		key: "n",
+		modifier: ["meta", "shift"],
+		handler: () => navigate({ to: "/chat" }),
+	});
+
+	useShortcut({
+		id: "chat:send",
+		label: "Send message",
+		key: "enter",
+		modifier: ["meta"],
+		handler: () => {
+			if (!streamChat.isStreaming) handleSend();
+		},
+	});
+
 	const didHandlePending = useRef(false);
 	useEffect(() => {
 		if (
@@ -76,7 +103,9 @@ function ChatConversationPage() {
 		const el = scrollRef.current;
 		if (!el) return;
 		const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-		stickToBottomRef.current = distanceFromBottom < 80;
+		const stick = distanceFromBottom < 80;
+		stickToBottomRef.current = stick;
+		setShowScrollButton(!stick && messages.length > 0);
 	}
 
 	useEffect(() => {
@@ -100,44 +129,86 @@ function ChatConversationPage() {
 		const opts: { model?: string; providerConfigId?: string } = {};
 		if (selectedModel !== undefined) opts.model = selectedModel;
 		if (selectedProviderId !== undefined) opts.providerConfigId = selectedProviderId;
+		setLastStreamRequest({ content: text, opts });
 		await streamChat.send(text, opts);
 		if (isFirst) generateTitle.mutate(conversationId);
 	}
 
-	function buildRegenerateOpts() {
-		const opts: { model?: string; providerConfigId?: string; regenerate?: boolean } = {
+	function buildRegenerateOpts(messageId?: string) {
+		const opts: {
+			model?: string;
+			providerConfigId?: string;
+			regenerate?: boolean;
+			replaceMessageId?: string;
+			deleteAfterMessageId?: string;
+		} = {
 			regenerate: true,
 		};
 		if (selectedModel !== undefined) opts.model = selectedModel;
 		if (selectedProviderId !== undefined) opts.providerConfigId = selectedProviderId;
+		if (messageId) opts.replaceMessageId = messageId;
 		return opts;
 	}
 
 	async function handleEdit(messageId: string, newContent: string) {
 		if (streamChat.isStreaming) return;
 		await updateMessage.mutateAsync({ messageId, content: newContent });
-		const edited = messages.find((m) => m.id === messageId);
-		if (edited) {
-			const subsequent = messages.filter((m) => m.createdAt > edited.createdAt);
-			for (const msg of subsequent) {
-				await deleteMessage.mutateAsync(msg.id);
-			}
-		}
+		// Optimistically remove subsequent messages from cache only.
+		// Backend handles actual deletion after successful generation.
+		qc.setQueryData<{ messages: StoredMessage[] }>(["messages", conversationId], (old) => {
+			if (!old) return old;
+			const edited = old.messages.find((m) => m.id === messageId);
+			if (!edited) return old;
+			return { messages: old.messages.filter((m) => m.createdAt <= edited.createdAt) };
+		});
 		stickToBottomRef.current = true;
-		await streamChat.send("", buildRegenerateOpts());
+		const opts: {
+			model?: string;
+			providerConfigId?: string;
+			regenerate?: boolean;
+			deleteAfterMessageId?: string;
+		} = { regenerate: true, deleteAfterMessageId: messageId };
+		if (selectedModel !== undefined) opts.model = selectedModel;
+		if (selectedProviderId !== undefined) opts.providerConfigId = selectedProviderId;
+		setLastStreamRequest({ content: "", opts });
+		await streamChat.send("", opts);
 	}
 
 	async function handleRegenerate(messageId: string) {
 		if (streamChat.isStreaming) return;
-		await deleteMessage.mutateAsync(messageId);
+		// Optimistically remove the old assistant message from cache only.
+		// Backend handles actual deletion after successful generation.
+		qc.setQueryData<{ messages: StoredMessage[] }>(["messages", conversationId], (old) => {
+			if (!old) return old;
+			return { messages: old.messages.filter((m) => m.id !== messageId) };
+		});
 		stickToBottomRef.current = true;
-		await streamChat.send("", buildRegenerateOpts());
+		const opts = buildRegenerateOpts(messageId);
+		setLastStreamRequest({ content: "", opts });
+		await streamChat.send("", opts);
+	}
+
+	async function handleRetry() {
+		if (!lastStreamRequest || streamChat.isStreaming) return;
+		stickToBottomRef.current = true;
+		await streamChat.send(lastStreamRequest.content, lastStreamRequest.opts);
+	}
+
+	function scrollToBottom() {
+		const el = scrollRef.current;
+		if (!el) return;
+		el.scrollTop = el.scrollHeight;
+		stickToBottomRef.current = true;
+		setShowScrollButton(false);
 	}
 
 	return (
 		<div className="flex min-h-0 w-full flex-1 flex-col">
 			<ChatHeader
+				conversationId={conversationId}
 				title={conversation?.title ?? "Chat"}
+				pinned={conversation?.pinned ?? false}
+				favorited={conversation?.favorited ?? false}
 				selectedModel={selectedModel}
 				selectedProviderConfigId={selectedProviderId}
 				onModelChange={handleModelChange}
@@ -146,7 +217,7 @@ function ChatConversationPage() {
 			<div
 				ref={scrollRef}
 				onScroll={handleScroll}
-				className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-4 py-6"
+				className="relative min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-4 py-6"
 			>
 				{isLoading ? (
 					<div className="space-y-6">
@@ -175,6 +246,7 @@ function ChatConversationPage() {
 									role={m.role}
 									content={m.content}
 									reasoning={m.reasoning}
+									model={m.model ?? undefined}
 									tokensPrompt={m.tokensPrompt}
 									tokensCompletion={m.tokensCompletion}
 									tokensTotal={m.tokensTotal}
@@ -192,6 +264,8 @@ function ChatConversationPage() {
 								role={"assistant"}
 								content={streamChat.streamingContent}
 								streamingReasoning={streamChat.streamingReasoning}
+								streamingModel={streamChat.streamingModel}
+								streamingUsage={streamChat.streamingUsage}
 								streaming
 							/>
 						)}
@@ -205,10 +279,32 @@ function ChatConversationPage() {
 											{streamChat.error}
 										</p>
 									</div>
+									{lastStreamRequest && (
+										<Button
+											variant="ghost"
+											size="sm"
+											className="shrink-0 text-xs"
+											onClick={handleRetry}
+											disabled={streamChat.isStreaming}
+										>
+											<RotateCw className="mr-1 h-3 w-3" />
+											Retry
+										</Button>
+									)}
 								</div>
 							</div>
 						)}
 					</>
+				)}
+				{showScrollButton && (
+					<button
+						type="button"
+						onClick={scrollToBottom}
+						className="sticky bottom-4 left-1/2 z-10 mx-auto flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border bg-background shadow-md transition-colors hover:bg-accent"
+						aria-label="Scroll to bottom"
+					>
+						<ArrowDown className="h-4 w-4" />
+					</button>
 				)}
 			</div>
 			<div className="flex-shrink-0 px-4 pb-4 pt-2">

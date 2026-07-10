@@ -1,3 +1,4 @@
+import type { TokenUsage } from "@katto/sdk";
 import { Brain, Check, ChevronRight, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -13,9 +14,12 @@ export interface MessageItemProps {
 	reasoning?: string | undefined;
 	streaming?: boolean;
 	streamingReasoning?: string | undefined;
+	streamingModel?: string | null;
+	streamingUsage?: TokenUsage | null;
 	tokensPrompt?: number | undefined;
 	tokensCompletion?: number | undefined;
 	tokensTotal?: number | undefined;
+	model?: string | undefined;
 	onEdit?: ((content: string) => void) | undefined;
 	onRegenerate?: (() => void) | undefined;
 	canRegenerate?: boolean;
@@ -27,9 +31,12 @@ export function MessageItem({
 	reasoning,
 	streaming = false,
 	streamingReasoning,
+	streamingModel,
+	streamingUsage,
 	tokensPrompt,
 	tokensCompletion,
 	tokensTotal,
+	model,
 	onEdit,
 	onRegenerate,
 	canRegenerate = false,
@@ -154,9 +161,24 @@ export function MessageItem({
 						{streaming && content && (
 							<span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-primary align-middle" />
 						)}
+						{!isUser && streaming && (streamingModel || streamingUsage) && (
+							<div className="mt-2 flex items-center gap-3 border-t border-border/50 pt-1.5">
+								{streamingModel && (
+									<span className="text-xs text-muted-foreground">{streamingModel}</span>
+								)}
+								{streamingUsage?.promptTokens !== undefined && (
+									<span className="text-xs text-muted-foreground">
+										↑ {streamingUsage.promptTokens}
+										{streamingUsage.completionTokens !== undefined &&
+											` ↓ ${streamingUsage.completionTokens}`}
+									</span>
+								)}
+							</div>
+						)}
 						{!isUser && !streaming && (
 							<div className="mt-2 flex items-center gap-3 border-t border-border/50 pt-1.5 opacity-0 transition-opacity group-hover:opacity-100">
 								<CopyButton getText={() => content} />
+								{model && <span className="text-xs text-muted-foreground">{model}</span>}
 								{hasUsage && (
 									<span className="text-xs text-muted-foreground">
 										{tokensPrompt !== undefined && `↑ ${tokensPrompt}`}

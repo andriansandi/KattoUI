@@ -16,7 +16,7 @@ export interface ProviderModelEntry {
 export interface ProviderModelGroup {
 	providerConfigId: string;
 	providerName: string;
-	models: Array<{ id: string; name: string }>;
+	models: Array<{ id: string; name: string; reasoning?: boolean }>;
 }
 
 /** A provider configuration stored per user. */
@@ -148,6 +148,12 @@ export interface StreamMessageInput {
 	model?: string | undefined;
 	providerConfigId?: string | undefined;
 	regenerate?: boolean | undefined;
+	/** Assistant message to replace (regenerate). Deleted server-side only after
+	 * the new response is successfully generated. */
+	replaceMessageId?: string | undefined;
+	/** When editing a user message, all messages after this one are excluded
+	 * from context and deleted server-side after the new response succeeds. */
+	deleteAfterMessageId?: string | undefined;
 }
 
 /** Token usage reported by the provider. */

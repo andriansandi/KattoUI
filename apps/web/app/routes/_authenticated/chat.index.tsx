@@ -1,12 +1,12 @@
 import type { ConversationInput } from "@katto/sdk";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Menu, PawPrint } from "lucide-react";
+import { Brain, Menu, PawPrint } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { Button } from "~/components/ui/button";
 import { Dropdown } from "~/components/ui/dropdown";
 import type { DropdownGroup } from "~/components/ui/dropdown";
-import { useCreateConversation } from "~/lib/queries/conversations";
+import { useConversations, useCreateConversation } from "~/lib/queries/conversations";
 import { useAllEnabledModels, useProviderConfigs } from "~/lib/queries/provider-configs";
 import { useUIStore } from "~/stores/ui-store";
 
@@ -30,28 +30,40 @@ function ChatEmptyState() {
 	const createConversation = useCreateConversation();
 	const { data: allModels } = useAllEnabledModels();
 	const { data: configsData } = useProviderConfigs();
+	const { data: convData } = useConversations();
 
 	const [input, setInput] = useState("");
 	const [isStarting, setIsStarting] = useState(false);
 	const [selected, setSelected] = useState<string | undefined>(undefined);
 	const setPendingMessage = useUIStore((s) => s.setPendingMessage);
 
-	// Default to the most-recent provider config's default model once loaded.
+	// Default to the model from the most recently used conversation; fall back
+	// to the most-recent provider config's default model. This way new chats
+	// inherit the last model the user actually chose, not just a config default.
 	useEffect(() => {
 		if (selected !== undefined) return;
+		const convs = convData?.conversations ?? [];
+		if (convs.length > 0) {
+			const last = convs[0];
+			if (last?.model && last?.providerConfigId) {
+				setSelected(compositeKey(last.providerConfigId, last.model));
+				return;
+			}
+		}
 		const configs = configsData?.providerConfigs ?? [];
 		if (configs.length === 0) return;
 		const recent = [...configs].sort((a, b) => b.createdAt - a.createdAt)[0];
 		if (recent?.defaultModel) {
 			setSelected(compositeKey(recent.id, recent.defaultModel));
 		}
-	}, [configsData, selected]);
+	}, [convData, configsData, selected]);
 
 	const groups: DropdownGroup[] = (allModels?.groups ?? []).map((g) => ({
 		label: g.providerName,
 		options: g.models.map((m) => ({
 			value: compositeKey(g.providerConfigId, m.id),
 			label: m.name,
+			icon: m.reasoning ? Brain : undefined,
 		})),
 	}));
 

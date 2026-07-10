@@ -5,7 +5,7 @@ import type {
 	StoredMessage,
 	StreamChatEvent,
 } from "@katto/sdk/chat";
-import { and, asc, count, desc, eq, inArray, max, min } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, max, min } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
@@ -495,6 +495,34 @@ app.post("/:id/generate-title", async (c) => {
 	}
 });
 
+/**
+ * Deletes messages that are being replaced or superseded after a successful
+ * regeneration or edit. Called only after the new assistant message is
+ * persisted, so a generation failure preserves the original messages.
+ */
+async function cleanupReplacedMessages(
+	db: ReturnType<typeof createDb>,
+	conversationId: string,
+	replaceMessageId: string | undefined,
+	deleteAfterTimestamp: number | null,
+) {
+	if (replaceMessageId) {
+		await db
+			.delete(messages)
+			.where(and(eq(messages.id, replaceMessageId), eq(messages.conversationId, conversationId)));
+	}
+	if (deleteAfterTimestamp !== null) {
+		await db
+			.delete(messages)
+			.where(
+				and(
+					eq(messages.conversationId, conversationId),
+					gt(messages.createdAt, deleteAfterTimestamp),
+				),
+			);
+	}
+}
+
 app.post("/:id/messages/stream", async (c) => {
 	const userId = c.get("userId");
 	const id = c.req.param("id");
@@ -505,6 +533,8 @@ app.post("/:id/messages/stream", async (c) => {
 		model: reqModel,
 		providerConfigId: reqProviderConfigId,
 		regenerate,
+		replaceMessageId,
+		deleteAfterMessageId,
 	} = result.data;
 
 	const db = createDb(c.env.DB);
@@ -529,6 +559,16 @@ app.post("/:id/messages/stream", async (c) => {
 	}
 
 	const { config, model } = resolved;
+
+	// Persist resolved model + provider so the conversation remembers the last
+	// model used — not just the config default. Covers the case where a
+	// conversation was created without an explicit model selection.
+	if (conv.model !== model || conv.providerConfigId !== config.id) {
+		await db
+			.update(conversations)
+			.set({ model, providerConfigId: config.id })
+			.where(eq(conversations.id, id));
+	}
 
 	const [modelRow] = await db
 		.select({ reasoning: providerModels.reasoning })
@@ -575,7 +615,23 @@ app.post("/:id/messages/stream", async (c) => {
 		.where(eq(messages.conversationId, id))
 		.orderBy(asc(messages.createdAt));
 
-	const chatMessages = allMessages
+	// When regenerating, exclude the old assistant message from context.
+	// When editing, exclude all messages after the edited message from context.
+	// The actual DB deletion happens only after the new response is successfully
+	// generated, so a failure preserves the original messages.
+	let contextMessages = allMessages;
+	let deleteAfterTimestamp: number | null = null;
+	if (deleteAfterMessageId) {
+		const edited = allMessages.find((m) => m.id === deleteAfterMessageId);
+		if (edited) deleteAfterTimestamp = edited.createdAt;
+	}
+	contextMessages = allMessages.filter((m) => {
+		if (replaceMessageId && m.id === replaceMessageId) return false;
+		if (deleteAfterTimestamp !== null && m.createdAt > deleteAfterTimestamp) return false;
+		return true;
+	});
+
+	const chatMessages = contextMessages
 		.filter((m) => m.role === "user" || m.role === "assistant")
 		.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
@@ -623,6 +679,8 @@ app.post("/:id/messages/stream", async (c) => {
 					reasoning: showReasoning ? (result.reasoning ?? null) : null,
 					createdAt: Date.now(),
 				});
+
+				await cleanupReplacedMessages(db, id, replaceMessageId, deleteAfterTimestamp);
 
 				await db
 					.update(conversations)
@@ -711,6 +769,8 @@ app.post("/:id/messages/stream", async (c) => {
 				tokensTotal: usage?.totalTokens ?? null,
 				createdAt: Date.now(),
 			});
+
+			await cleanupReplacedMessages(db, id, replaceMessageId, deleteAfterTimestamp);
 
 			await db.update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, id));
 		}

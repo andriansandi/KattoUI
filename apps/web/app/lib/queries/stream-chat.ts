@@ -1,4 +1,4 @@
-import type { StoredMessage, StreamChatEvent } from "@katto/sdk";
+import type { StoredMessage, StreamChatEvent, TokenUsage } from "@katto/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { apiUrl } from "~/lib/api";
@@ -17,12 +17,20 @@ function messagesKey(conversationId: string) {
 interface UseStreamChatResult {
 	send: (
 		content: string,
-		opts?: { model?: string; providerConfigId?: string; regenerate?: boolean },
+		opts?: {
+			model?: string;
+			providerConfigId?: string;
+			regenerate?: boolean;
+			replaceMessageId?: string;
+			deleteAfterMessageId?: string;
+		},
 	) => Promise<void>;
 	stop: () => void;
 	isStreaming: boolean;
 	streamingContent: string;
 	streamingReasoning: string;
+	streamingModel: string | null;
+	streamingUsage: TokenUsage | null;
 	error: string | null;
 }
 
@@ -34,13 +42,21 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [streamingContent, setStreamingContent] = useState("");
 	const [streamingReasoning, setStreamingReasoning] = useState("");
+	const [streamingModel, setStreamingModel] = useState<string | null>(null);
+	const [streamingUsage, setStreamingUsage] = useState<TokenUsage | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
 	const send = useCallback(
 		async (
 			content: string,
-			opts?: { model?: string; providerConfigId?: string; regenerate?: boolean },
+			opts?: {
+				model?: string;
+				providerConfigId?: string;
+				regenerate?: boolean;
+				replaceMessageId?: string;
+				deleteAfterMessageId?: string;
+			},
 		) => {
 			if (isStreaming || (!content.trim() && !opts?.regenerate)) return;
 
@@ -48,6 +64,8 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 			setIsStreaming(true);
 			setStreamingContent("");
 			setStreamingReasoning("");
+			setStreamingModel(null);
+			setStreamingUsage(null);
 
 			await qc.cancelQueries({ queryKey: key });
 
@@ -119,6 +137,10 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 							} else if (event.type === "reasoning") {
 								reasoningAccumulated += event.content;
 								setStreamingReasoning(reasoningAccumulated);
+							} else if (event.type === "meta") {
+								setStreamingModel(event.model);
+							} else if (event.type === "done") {
+								if (event.usage) setStreamingUsage(event.usage);
 							} else if (event.type === "error") {
 								setError(event.message);
 							}
@@ -137,6 +159,8 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 				setIsStreaming(false);
 				setStreamingContent("");
 				setStreamingReasoning("");
+				setStreamingModel(null);
+				setStreamingUsage(null);
 				abortRef.current = null;
 				qc.invalidateQueries({ queryKey: key });
 				qc.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
@@ -149,5 +173,14 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 		abortRef.current?.abort();
 	}, []);
 
-	return { send, stop, isStreaming, streamingContent, streamingReasoning, error };
+	return {
+		send,
+		stop,
+		isStreaming,
+		streamingContent,
+		streamingReasoning,
+		streamingModel,
+		streamingUsage,
+		error,
+	};
 }

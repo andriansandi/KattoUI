@@ -4,6 +4,7 @@ import "@katto/design-system/styles/themes.css";
 import "~/styles/animations.css";
 import "~/styles/markdown.css";
 import { CommandPalette } from "~/components/command-palette";
+import { KeyboardRegistryProvider } from "~/lib/keyboard-registry";
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -36,8 +37,10 @@ export const Route = createRootRoute({
 function RootComponent() {
 	return (
 		<RootDocument>
-			<Outlet />
-			<CommandPalette />
+			<KeyboardRegistryProvider>
+				<Outlet />
+				<CommandPalette />
+			</KeyboardRegistryProvider>
 		</RootDocument>
 	);
 }

@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "~/lib/cn";
 import { coreCommands, getCommandIcon } from "~/lib/commands";
+import { useShortcut } from "~/lib/keyboard-registry";
 import { useUIStore } from "~/stores/ui-store";
 import { Input } from "./ui/input";
 
@@ -12,6 +13,23 @@ export function CommandPalette() {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
+
+	useShortcut({
+		id: "palette:toggle",
+		label: "Toggle command palette",
+		key: "k",
+		modifier: ["meta"],
+		handler: () => setOpen(!useUIStore.getState().commandPaletteOpen),
+	});
+
+	useShortcut({
+		id: "palette:close",
+		label: "Close command palette",
+		key: "Escape",
+		handler: () => {
+			if (useUIStore.getState().commandPaletteOpen) setOpen(false);
+		},
+	});
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -30,20 +48,6 @@ export function CommandPalette() {
 			setActiveIndex(0);
 		}
 	}, [open]);
-
-	useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
-			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-				event.preventDefault();
-				setOpen(!open);
-			}
-			if (event.key === "Escape" && open) {
-				setOpen(false);
-			}
-		}
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [open, setOpen]);
 
 	function executeCommand(index: number) {
 		const cmd = filtered[index];
