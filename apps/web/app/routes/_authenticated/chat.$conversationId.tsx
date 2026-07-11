@@ -1,7 +1,6 @@
-import type { StoredMessage } from "@katto/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { AlertCircle, ArrowDown, RotateCw } from "lucide-react";
+import { AlertCircle, ArrowDown, Loader2, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "~/components/chat-composer";
 import { ChatHeader } from "~/components/chat-header";
@@ -14,7 +13,7 @@ import {
 	useGenerateTitle,
 	useUpdateConversation,
 } from "~/lib/queries/conversations";
-import { useMessages, useUpdateMessage } from "~/lib/queries/messages";
+import { type MessagesData, useMessages, useUpdateMessage } from "~/lib/queries/messages";
 import { useStreamChat } from "~/lib/queries/stream-chat";
 import { useUIStore } from "~/stores/ui-store";
 
@@ -33,7 +32,15 @@ function ChatConversationPage() {
 	const pendingMessage = useUIStore((s) => s.pendingMessage);
 	const setPendingMessage = useUIStore((s) => s.setPendingMessage);
 
-	const { data, isLoading, isError, refetch } = useMessages(conversationId);
+	const {
+		data,
+		isLoading,
+		isError,
+		refetch,
+		hasPreviousPage,
+		isFetchingPreviousPage,
+		fetchPreviousPage,
+	} = useMessages(conversationId);
 	const streamChat = useStreamChat(conversationId);
 	const generateTitle = useGenerateTitle();
 	const updateConversation = useUpdateConversation();
@@ -48,6 +55,14 @@ function ChatConversationPage() {
 		content: string;
 		opts: { model?: string; providerConfigId?: string; regenerate?: boolean };
 	} | null>(null);
+
+	// Reset model selection when navigating to a different conversation so the
+	// dropdown reflects the conversation's own model, not the previous one's.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on conversation change
+	useEffect(() => {
+		setSelectedModel(undefined);
+		setSelectedProviderId(undefined);
+	}, [conversationId]);
 
 	useEffect(() => {
 		if (selectedModel === undefined && conversation?.model) {
@@ -65,7 +80,8 @@ function ChatConversationPage() {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
 	const prevConversationIdRef = useRef(conversationId);
-	const messages = data?.messages ?? [];
+	const prevScrollHeightRef = useRef<number | null>(null);
+	const messages = data?.pages.flatMap((p) => p.messages) ?? [];
 
 	useShortcut({
 		id: "chat:new",
@@ -106,7 +122,24 @@ function ChatConversationPage() {
 		const stick = distanceFromBottom < 80;
 		stickToBottomRef.current = stick;
 		setShowScrollButton(!stick && messages.length > 0);
+
+		if (el.scrollTop < 80 && hasPreviousPage && !isFetchingPreviousPage) {
+			prevScrollHeightRef.current = el.scrollHeight;
+			fetchPreviousPage();
+		}
 	}
+
+	// Preserve scroll position when older messages are prepended.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency on data to detect new pages
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el || prevScrollHeightRef.current === null) return;
+		const diff = el.scrollHeight - prevScrollHeightRef.current;
+		if (diff > 0) {
+			el.scrollTop += diff;
+		}
+		prevScrollHeightRef.current = null;
+	}, [data]);
 
 	useEffect(() => {
 		const el = scrollRef.current;
@@ -155,11 +188,19 @@ function ChatConversationPage() {
 		await updateMessage.mutateAsync({ messageId, content: newContent });
 		// Optimistically remove subsequent messages from cache only.
 		// Backend handles actual deletion after successful generation.
-		qc.setQueryData<{ messages: StoredMessage[] }>(["messages", conversationId], (old) => {
-			if (!old) return old;
-			const edited = old.messages.find((m) => m.id === messageId);
-			if (!edited) return old;
-			return { messages: old.messages.filter((m) => m.createdAt <= edited.createdAt) };
+		qc.setQueryData<MessagesData>(["messages", conversationId], (old) => {
+			if (!old?.pages?.length) return old;
+			return {
+				...old,
+				pages: old.pages.map((page) => {
+					const edited = page.messages.find((m) => m.id === messageId);
+					if (!edited) return page;
+					return {
+						...page,
+						messages: page.messages.filter((m) => m.createdAt <= edited.createdAt),
+					};
+				}),
+			};
 		});
 		stickToBottomRef.current = true;
 		const opts: {
@@ -178,9 +219,15 @@ function ChatConversationPage() {
 		if (streamChat.isStreaming) return;
 		// Optimistically remove the old assistant message from cache only.
 		// Backend handles actual deletion after successful generation.
-		qc.setQueryData<{ messages: StoredMessage[] }>(["messages", conversationId], (old) => {
-			if (!old) return old;
-			return { messages: old.messages.filter((m) => m.id !== messageId) };
+		qc.setQueryData<MessagesData>(["messages", conversationId], (old) => {
+			if (!old?.pages?.length) return old;
+			return {
+				...old,
+				pages: old.pages.map((page) => ({
+					...page,
+					messages: page.messages.filter((m) => m.id !== messageId),
+				})),
+			};
 		});
 		stickToBottomRef.current = true;
 		const opts = buildRegenerateOpts(messageId);
@@ -238,6 +285,11 @@ function ChatConversationPage() {
 					</div>
 				) : (
 					<>
+						{isFetchingPreviousPage && (
+							<div className="flex justify-center py-2">
+								<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+							</div>
+						)}
 						{messages.map((m, index) => {
 							const isLastAssistant = m.role === "assistant" && index === messages.length - 1;
 							return (

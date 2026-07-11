@@ -125,6 +125,13 @@ export interface StoredMessage {
 	createdAt: number;
 }
 
+/** Paginated response for message fetching. */
+export interface PaginatedMessages {
+	messages: StoredMessage[];
+	hasMore: boolean;
+	nextCursor: number | null;
+}
+
 /** Input for creating a message. */
 export interface MessageInput {
 	conversationId: string;

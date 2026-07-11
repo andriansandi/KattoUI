@@ -50,6 +50,13 @@
       "when": 1783340142962,
       "tag": "0006_add_reasoning",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1783689244423,
+      "tag": "0007_messages_composite_index",
+      "breakpoints": true
     }
   ]
 }
