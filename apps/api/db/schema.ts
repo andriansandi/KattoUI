@@ -47,7 +47,10 @@ export const messages = sqliteTable(
 		tokensTotal: integer("tokens_total"),
 		createdAt: integer("created_at").notNull(),
 	},
-	(table) => [index("messages_conversation_id_idx").on(table.conversationId)],
+	(table) => [
+		index("messages_conversation_id_idx").on(table.conversationId),
+		index("messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+	],
 );
 
 export const providerModels = sqliteTable(

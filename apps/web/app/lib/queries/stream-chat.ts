@@ -1,12 +1,15 @@
 import type { StoredMessage, StreamChatEvent, TokenUsage } from "@katto/sdk";
+import type { InfiniteData } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { apiUrl } from "~/lib/api";
 import { useAuthHeaders } from "~/lib/auth-fetch";
 
-interface MessagesResponse {
+type MessagesData = InfiniteData<{
 	messages: StoredMessage[];
-}
+	hasMore: boolean;
+	nextCursor: number | null;
+}>;
 
 const CONVERSATIONS_KEY = ["conversations"] as const;
 
@@ -79,9 +82,15 @@ export function useStreamChat(conversationId: string): UseStreamChatResult {
 					createdAt: Date.now(),
 				};
 
-				qc.setQueryData<MessagesResponse>(key, (old) => {
-					if (!old) return { messages: [tempMessage] };
-					return { messages: [...old.messages, tempMessage] };
+				qc.setQueryData<MessagesData>(key, (old) => {
+					if (!old?.pages?.length) return old;
+					const lastIdx = old.pages.length - 1;
+					return {
+						...old,
+						pages: old.pages.map((page, i) =>
+							i === lastIdx ? { ...page, messages: [...page.messages, tempMessage] } : page,
+						),
+					};
 				});
 			}
 

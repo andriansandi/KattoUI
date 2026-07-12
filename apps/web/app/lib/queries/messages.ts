@@ -1,13 +1,12 @@
-import type { MessageInput, StoredMessage } from "@katto/sdk";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { MessageInput, PaginatedMessages, StoredMessage } from "@katto/sdk";
+import type { InfiniteData } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthFetch } from "~/lib/auth-fetch";
 
 export type MessageCreateInput = Omit<MessageInput, "conversationId">;
 
-interface MessagesResponse {
-	messages: StoredMessage[];
-}
+export type MessagesData = InfiniteData<PaginatedMessages>;
 
 const CONVERSATIONS_KEY = ["conversations"] as const;
 
@@ -17,9 +16,19 @@ function messagesKey(conversationId: string) {
 
 export function useMessages(conversationId: string) {
 	const authFetch = useAuthFetch();
-	return useQuery({
+	return useInfiniteQuery({
 		queryKey: messagesKey(conversationId),
-		queryFn: () => authFetch<MessagesResponse>(`/conversations/${conversationId}/messages`),
+		queryFn: ({ pageParam }: { pageParam: number | undefined }) => {
+			const url =
+				pageParam !== undefined
+					? `/conversations/${conversationId}/messages?limit=50&cursor=${pageParam}`
+					: `/conversations/${conversationId}/messages?limit=50`;
+			return authFetch<PaginatedMessages>(url);
+		},
+		initialPageParam: undefined as number | undefined,
+		getPreviousPageParam: (firstPage: PaginatedMessages) =>
+			firstPage.hasMore ? (firstPage.nextCursor ?? undefined) : undefined,
+		getNextPageParam: () => undefined,
 	});
 }
 
@@ -69,7 +78,7 @@ export function useCreateMessage(conversationId: string) {
 			}),
 		onMutate: async (input) => {
 			await qc.cancelQueries({ queryKey: key });
-			const previous = qc.getQueryData<MessagesResponse>(key);
+			const previous = qc.getQueryData<MessagesData>(key);
 
 			const tempId = `temp-${Date.now()}`;
 			const tempMessage: StoredMessage = {
@@ -83,9 +92,15 @@ export function useCreateMessage(conversationId: string) {
 				tempMessage.model = input.model;
 			}
 
-			qc.setQueryData<MessagesResponse>(key, (old) => {
-				if (!old) return { messages: [tempMessage] };
-				return { messages: [...old.messages, tempMessage] };
+			qc.setQueryData<MessagesData>(key, (old) => {
+				if (!old?.pages?.length) return old;
+				const lastIdx = old.pages.length - 1;
+				return {
+					...old,
+					pages: old.pages.map((page, i) =>
+						i === lastIdx ? { ...page, messages: [...page.messages, tempMessage] } : page,
+					),
+				};
 			});
 
 			return { previous, tempId };
@@ -97,10 +112,19 @@ export function useCreateMessage(conversationId: string) {
 		},
 		onSuccess: (message, _vars, context) => {
 			if (context?.tempId) {
-				qc.setQueryData<MessagesResponse>(key, (old) => {
-					if (!old) return { messages: [message] };
+				qc.setQueryData<MessagesData>(key, (old) => {
+					if (!old?.pages?.length) return old;
+					const lastIdx = old.pages.length - 1;
 					return {
-						messages: old.messages.map((m) => (m.id === context.tempId ? message : m)),
+						...old,
+						pages: old.pages.map((page, i) =>
+							i === lastIdx
+								? {
+										...page,
+										messages: page.messages.map((m) => (m.id === context.tempId ? message : m)),
+									}
+								: page,
+						),
 					};
 				});
 			}

@@ -5,7 +5,7 @@ import type {
 	StoredMessage,
 	StreamChatEvent,
 } from "@katto/sdk/chat";
-import { and, asc, count, desc, eq, gt, inArray, max, min } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, max, min } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createDb } from "../../db/index.js";
@@ -298,13 +298,33 @@ app.get("/:id/messages", async (c) => {
 		return c.json({ error: "Conversation not found" }, 404);
 	}
 
+	const limit = Math.min(Number(c.req.query("limit") ?? "50"), 100);
+	const cursorRaw = c.req.query("cursor");
+	const cursor = cursorRaw !== undefined ? Number(cursorRaw) : undefined;
+
+	const conditions = [eq(messages.conversationId, id)];
+	if (cursor !== undefined && !Number.isNaN(cursor)) {
+		conditions.push(lt(messages.createdAt, cursor));
+	}
+
 	const rows = await db
 		.select()
 		.from(messages)
-		.where(eq(messages.conversationId, id))
-		.orderBy(asc(messages.createdAt));
+		.where(and(...conditions))
+		.orderBy(desc(messages.createdAt))
+		.limit(limit + 1);
 
-	return c.json({ messages: rows.map(toMessage) });
+	const hasMore = rows.length > limit;
+	const page = hasMore ? rows.slice(0, limit) : rows;
+	const oldest = page[page.length - 1];
+
+	page.reverse();
+
+	return c.json({
+		messages: page.map(toMessage),
+		hasMore,
+		nextCursor: hasMore && oldest ? oldest.createdAt : null,
+	});
 });
 
 app.post("/:id/messages", async (c) => {
